@@ -1,16 +1,20 @@
 # CSE60868 Signature Verification Project
 
 ## Project Objective
-This project implements a **One-Shot Learning** system for offline handwritten signature verification using Siamese Networks. The goal is to build a system that can verify signatures for users it has never seen before (Writer-Independent).
+This project compares two deep learning approaches for signature verification to demonstrate the difference between traditional classification and the "One-Shot Learning" capability required for real-world biometrics.
 
-### Core Tasks
-1.  **User-Specific Verification (Writer-Dependent):**
-    * Train and test on a closed set of users (e.g., specific Kaggle IDs).
-    * *Question:* "Is this image consistent with User A's training samples?"
-2.  **Writer-Independent Verification (Siamese One-Shot):**
-    * Train on a large background dataset (e.g., BHSig260 + CEDAR).
-    * Test on completely unseen users (e.g., Our own signatures).
-    * *Question:* "Given Reference Image X and Query Image Y, are they from the same writer?"
+### The Core Comparison
+1.  **Task A: Writer-Dependent Classification (The Baseline)**
+    * *Question:* "Who wrote this?" (Closed-Set)
+    * *Model:* Standard CNN Classifier.
+    * *Limit:* Can only recognize users present in the training set.
+    * *Goal:* Establish a performance baseline for feature extraction.
+
+2.  **Task B: Writer-Independent Verification (The Advanced Goal)**
+    * *Question:* "Do these two signatures match?" (Open-Set)
+    * *Model:* Siamese Network with Metric Learning.
+    * *Advantage:* Can verify **completely new users** (e.g., the project team) without retraining.
+    * *Goal:* Verify signatures for users the model has never seen before.
 
 ---
 
@@ -50,78 +54,69 @@ This project implements a **One-Shot Learning** system for offline handwritten s
 
 ---
 
-## Selected Dataset Strategy
-We have selected the following high-quality academic benchmarks from the list above to ensure valid baselines and cross-lingual generalization.
+## Selected Strategy & Data Split
+To ensure the model succeeds on the team's English signatures (Demo Phase) despite the training data being primarily Indic scripts, we will use a mixed split strategy.
 
-### Primary Datasets (Training & Validation)
-1.  **BHSig-260 Dataset** (Dataset #2)
-    * *Role:* Main training set to learn general geometric stability and stroke dynamics (High volume).
-2.  **CEDAR / Ishani Kathuria** (Dataset #8)
-    * *Role:* **Crucial for English generalization.** We will split this dataset to ensure the model learns Latin script features before testing on our own signatures.
+* **Training Set:** **All BHSig-260** + **CEDAR (Users 1–30)**
+    * *Reason:* We must include some English/Latin signatures in training so the model learns features like loops and ascenders, which are less common in Indic scripts.
+* **Validation Set:** **CEDAR (Users 31–45)**
+    * *Reason:* Used to tune hyperparameters and save the best model.
+* **Test/Demo Set:** **CEDAR (Users 46–55)** + **Team Members' Custom Signatures**
+    * *Reason:* Completely unseen users to prove "One-Shot" capability.
 
 ### Supplemental Datasets
 * **Akash Gundu Dataset** (Dataset #6) will be used if the model requires more pre-training volume.
 
 ---
 
+
 ## Work Division
 
-### **Team Member 1: Infrastructure & Baseline**
-* **Data Pipeline:** Implement the `PyTorch Dataset` class.
-    * *Coordination Point:* Define the `__getitem__` return format early (e.g., returns `(image1, image2, label)`).
-    * *Splitting:* Ensure strictly disjoint user splits (see "Technical Workflow" below).
-* **Preprocessing:**
-    * Binarization (Otsu’s Thresholding).
-    * Inverted Normalization (Background=0, Ink=1).
-    * Fixed size resizing (e.g., $155 \times 220$).
-* **Baseline Model:** Standard CNN classifier (Multi-class classification) to establish a performance floor on the "Writer-Dependent" task.
+### **Team Member 1: The Baseline & Infrastructure**
+* **Task 1: Preprocessing Pipeline:**
+    * Invert images (Black background, White ink).
+    * Resize to fixed target (e.g., $155 \times 220$).
+    * *Deliverable:* A `process_image()` function used by both team members.
+* **Task 2: The CNN Classifier (Baseline):**
+    * Build a standard Multi-Class CNN to classify the 260 BHSig users.
+    * *Goal:* Achieve high accuracy (>90%) to prove the Custom CNN architecture is sound.
 
-### **Team Member 2: Siamese Architecture & Evaluation**
-* **Pair Generation Logic:**
-    * *Anchor-Positive:* Genuine A + Genuine A.
-    * *Anchor-Negative (Easy):* Genuine A + Genuine B.
-    * *Anchor-Negative (Hard):* Genuine A + Forged A.
-* **Model Architecture:**
-    * Implement Siamese Network with shared weights.
-    * Backbone: Custom CNN or ResNet-18 (modified for 1-channel input).
-* **Loss Function:** Implement **Contrastive Loss**.
+### **Team Member 2: The Siamese Network**
+* **Task 1: Dynamic Pair Sampling (Crucial):**
+    * *Engineering Constraint:* Do **not** generate all possible pairs (millions). Generate pairs **on-the-fly** inside the `__getitem__` method.
+    * *Ratio Strategy:*
+        * **Positive Pairs (50%):** Genuine A + Genuine A.
+        * **Negative Pairs (50%):** Prioritize **Hard Negatives** (Genuine A + Forged A) over Easy Negatives (Genuine A + Genuine B) to force the model to learn subtle differences.
+* **Task 2: Siamese Architecture:**
+    * Reuse the CNN from Team Member 1 as the backbone (remove the final classification layer).
+    * Implement Euclidean Distance logic and Contrastive Loss.
 
 ### **Joint Tasks**
-* **Evaluation:**
-    * Compute **FAR** (False Acceptance Rate) and **FRR** (False Rejection Rate).
-    * Plot the **ROC Curve** to find the optimal distance threshold $\tau$.
-* **Real-World Test:**
-    * Collect 5 genuine and 5 forged signatures from team members.
-    * Run them through the model (without training on them) to prove One-Shot capability.
+* **Final Report:** Compare the Baseline (Classifies known users) vs. Siamese (Verifies new users).
+* **Demo:** Run the team's signatures through the Siamese network to see if it detects the teammate's forgeries.
 
 ---
 
 ## Technical Workflow
 
-### 1. Data Ingestion & Splitting Strategy
-To ensure the model works on English signatures (Team Test) despite being trained heavily on Hindi/Bengali (BHSig260), we will use the following split:
+### Phase 1: The Architecture (Custom CNN)
+To demonstrate "built from scratch" capability and avoid over-engineering, we will use this custom architecture:
 
-* **Training Set:** All BHSig260 (260 users) + First 40 users of CEDAR.
-    * *Goal:* Learn stroke features from both Indic and Latin scripts.
-* **Validation Set:** Users 41–50 of CEDAR.
-* **Test Set (Unseen):** Last 5 users of CEDAR + **Team Members' Custom Signatures**.
+1.  **Conv2D** (1 $\to$ 32 filters) + ReLU + MaxPool
+2.  **Conv2D** (32 $\to$ 64 filters) + ReLU + MaxPool
+3.  **Conv2D** (64 $\to$ 128 filters) + ReLU + MaxPool
+4.  **Flatten** $\to$ **Dense** (256) $\to$ **Dense** (128 - Embedding Vector)
 
-### 2. Preprocessing Pipeline
-Since we are building "from scratch," we need robust features.
-1.  **Grayscale & Invert:** Signatures are white-on-black in tensor form ($0$ is background).
-2.  **Centering:** Compute the center of mass of the pixels and center the signature in the canvas.
-3.  **Augmentation (Crucial):**
-    * Random Affine (Rotation $\pm 10^{\circ}$, Shear $\pm 5^{\circ}$).
-    * *Do not* flip signatures (signatures are not symmetric).
+### Phase 2: Training (Metric Learning)
+* **Loss Function:** Contrastive Loss.
+    * *Logic:* If pairs are the same, minimize distance. If different, maximize distance until it hits a margin $m$.
+* **Hyperparameters:**
+    * Margin ($m$): 1.0
+    * Learning Rate: $1e-3$ (Adam Optimizer)
+    * Batch Size: 32 or 64 (depending on RAM).
 
-### 3. Model Architecture Strategy
-* **Backbone:** ResNet-18 (lightweight) or Custom 4-Layer CNN.
-    * *Constraint:* Input channels = 1.
-    * *Output:* Embedding vector of size 128 or 256.
-* **Metric:** Euclidean Distance between embeddings.
-
-### 4. Training Loop
-* **Loss:** Contrastive Loss.
-    $$L = (1-Y) \frac{1}{2} D^2 + (Y) \frac{1}{2} \{ \max(0, m - D) \}^2$$
-* **Optimizer:** Adam ($lr=1E-3$ or $1E-4$).
-* **Batching:** Ensure every batch contains a mix of Positive and Hard Negative pairs.
+### Phase 3: Evaluation Metrics
+We will report standard biometric metrics:
+1.  **FAR (False Acceptance Rate):** How often do we accidentally trust a forgery?
+2.  **FRR (False Rejection Rate):** How often do we accidentally reject a genuine signature?
+3.  **ROC (Receiver Operating Characteristic) Curve:** Plot FAR vs. FRR to find the optimal threshold $\tau$.
