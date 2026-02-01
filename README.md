@@ -1,4 +1,5 @@
 # CSE60868 Signature Verification Project
+Disclaimer: Written with the help of Gemini and ChatGPT
 
 ## Project Objective
 This project compares two deep learning approaches for signature verification to demonstrate the difference between traditional classification and the "One-Shot Learning" capability required for real-world biometrics.
