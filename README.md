@@ -121,3 +121,6 @@ We will report standard biometric metrics:
 1.  **FAR (False Acceptance Rate):** How often do we accidentally trust a forgery?
 2.  **FRR (False Rejection Rate):** How often do we accidentally reject a genuine signature?
 3.  **ROC (Receiver Operating Characteristic) Curve:** Plot FAR vs. FRR to find the optimal threshold $\tau$.
+
+## Advanced tasks (optional):
+* Use a foundational model, such as models from meta [DINO 3](https://ai.meta.com/research/dinov3/), and use transfer learning to see how our work performs when we add those on top of DINO3.
