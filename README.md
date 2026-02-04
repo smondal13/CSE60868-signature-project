@@ -1,5 +1,4 @@
 # CSE60868 Signature Verification Project
-Disclaimer: Written with the help of Gemini and ChatGPT
 
 ## Project Objective
 This project compares two deep learning approaches for signature verification to demonstrate the difference between traditional classification and the "One-Shot Learning" capability required for real-world biometrics.
@@ -99,7 +98,11 @@ To ensure the model succeeds on the team's English signatures (Demo Phase) despi
 ---
 
 ## Technical Workflow
-
+We need to split the datasets into three.
+1. Training dataset
+2. Validation dataset
+3. Test dataset
+   
 ### Phase 1: The Architecture (Custom CNN)
 To demonstrate "built from scratch" capability and avoid over-engineering, we will use this custom architecture:
 
@@ -124,3 +127,5 @@ We will report standard biometric metrics:
 
 ## Advanced tasks (optional):
 * Use a foundational model, such as models from meta [DINO 3](https://ai.meta.com/research/dinov3/), and use transfer learning to see how our work performs when we add those on top of DINO3.
+
+Disclaimer: Written with the help of Gemini and ChatGPT
