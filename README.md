@@ -11,9 +11,10 @@ We will first implement a standard Convolutional Neural Network (CNN) trained as
 2.  **Task B: Writer-Independent Verification**
 The core of our project is to build a One-Shot Learning system using a Siamese Network. This addresses the real-world requirement where a banking or security system must verify a new user without retraining the entire model. The network will answer the question: *"Do these two signatures belong to the same person?"* By learning a similarity metric (Euclidean distance) rather than specific class labels, the model can generalize to completely unseen writers—including the project team members.
 ---
-
+   - Contains 3000 forged and 2400 genuine signatures.
+   - Includes Bengali and Hindi scripts.
 ## Selected Strategy & Data Split
-We will first use the **BHSig-260** dataset, which contains Indic language signatures, for training and validation, and note the performance. After that, we will apply the model to other language signature verification, for example, English, and note the performance. If the performance is unsatisfactory, we will add the CEDAR Latin signatures for training and note the resulting performance improvement.
+We will first use the **BHSig-260** dataset, which contains 3000 forged and 2400 genuine signatures of Bengali and Hindi scripts, for training and validation, and note the performance. After that, we will apply the model to other language signature verification, for example, English, and note the performance. If the performance is unsatisfactory, we will add the CEDAR Latin signatures for training and note the resulting performance improvement.
 
 ---
 
@@ -47,41 +48,25 @@ Shuvashish Mondal will use **Contrastive Loss** to train the manifold.
 * **Final Report:** Compare the Baseline (Classifies known users) vs. Siamese (Verifies new users).
 * **Demo:** Run the team's signatures through the Siamese network to see if it detects the teammate's forgeries.
 ---
+
+## Evaluation Methodology
+Unlike standard classification tasks, where "Accuracy" is the primary metric, biometric verification requires measuring the trade-off between security and convenience. We will evaluate our Siamese Network using the following standard biometric metrics:
+
+1.  **False Acceptance Rate (FAR):**
+    * *Definition:* The likelihood that the system incorrectly verifies a forgery as genuine.
+    * *Significance:* In a high-security context (e.g., banking), this must be minimized to near zero.
+2.  **False Rejection Rate (FRR):**
+    * *Definition:* The likelihood that the system incorrectly rejects a genuine user.
+    * *Significance:* High FRR frustrates users. A usable system must balance this against FAR.
+3.  **Receiver Operating Characteristic (ROC) Curve:**
+    * Since our model outputs a continuous distance score, there is no single "correct" threshold. We will plot FAR vs. FRR across all possible thresholds ($\tau$) to visualize the system's performance.
+4.  **Equal Error Rate (EER):**
+    * We will determine the specific threshold where $FAR = FRR$. This single number provides a standard benchmark to compare our model against state-of-the-art results in the literature.
+---
+
 ## Advanced Scope (Optional)
 If time permits, we plan to experiment with transfer learning using foundational models such as Meta's [DINOv3](https://ai.meta.com/research/dinov3/). We will test if replacing our custom CNN backbone with DINOv3 features improves verification accuracy on the "One-Shot" task.
 
-## Datasets Available Online
-*Reference list of all datasets collected for this project.*
-
-1. **[Divyansh Rai Dataset](https://www.kaggle.com/datasets/divyanshrai/handwritten-signatures)**
-   - Handwritten dataset of 30 people.
-   - Contains 5 genuine and 5 forged signatures from each person.
-
-2. **[BHSig-260 Dataset](https://www.kaggle.com/datasets/ankita22053139/cedarbhsig-260)**
-   - Contains 3000 forged and 2400 genuine signatures.
-   - Includes Bengali and Hindi scripts.
-
-3. **[GPDS 1-150 Dataset](https://www.kaggle.com/datasets/adeelajmal/gpds-1150)**
-   - Contains 2400 genuine and 2400 forged signatures for training.
-   - Contains test signatures of 125 persons.
-
-4. **[GPDS 300 Dataset](https://service.tib.eu/ldmservice/dataset/?tags=Handwritten+Signatures)**
-   - 300 writers, with 24 genuine and 30 skilled forgeries per writer.
-
-5. **[TC4 Dataset Link](https://iapr-tc4.org/signature-datasets/)**
-   - Repository containing URLs and references of ~15 datasets.
-
-6. **[AKASH GUNDU Dataset](https://www.kaggle.com/datasets/akashgundu/signature-verification-dataset)**
-   - Signatures of 1372 people.
-   - Each person has 10 genuine and 10 forged signatures in labeled folders.
-
-7. **[Manish Vem Dataset](https://www.kaggle.com/datasets/manishvem/signatures-dataset)**
-   - Signatures of 1487 unique individuals.
-   - Each person has genuine and forged signatures.
-
-8. **[CEDAR (Ishani Kathuria Dataset)](https://www.kaggle.com/datasets/ishanikathuria/handwritten-signature-datasets)**
-   - Signatures by 55 people written in **Latin** script.
-   - Each person has 24 genuine and 24 forged signatures.
-   - Also contains BHSig260-Bengali and BHSig260 Hindi datasets.
+*Wordcount: 779 using [wordcounter](https://wordcounter.net/)*
 
 *Disclaimer: Portions of this proposal were brainstormed and refined with the assistance of AI tools (Gemini and ChatGPT), acting as a "senior engineer" persona to critique architectural decisions and workflow.*
