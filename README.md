@@ -67,6 +67,8 @@ Unlike standard classification tasks, where "Accuracy" is the primary metric, bi
 ## Advanced Scope (Optional)
 If time permits, we plan to experiment with transfer learning using foundational models such as Meta's [DINOv3](https://ai.meta.com/research/dinov3/). We will test if replacing our custom CNN backbone with DINOv3 features improves verification accuracy on the "One-Shot" task.
 
-*Wordcount: 779 using [wordcounter](https://wordcounter.net/)*
+---
+
+Wordcount: 779 using [wordcounter](https://wordcounter.net/)
 
 *Disclaimer: Portions of this proposal were brainstormed and refined with the assistance of AI tools (Gemini and ChatGPT), acting as a "senior engineer" persona to critique architectural decisions and workflow.*
