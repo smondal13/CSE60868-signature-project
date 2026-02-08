@@ -11,8 +11,7 @@ We will first implement a standard Convolutional Neural Network (CNN) trained as
 2.  **Task B: Writer-Independent Verification**
 The core of our project is to build a One-Shot Learning system using a Siamese Network. This addresses the real-world requirement where a banking or security system must verify a new user without retraining the entire model. The network will answer the question: *"Do these two signatures belong to the same person?"* By learning a similarity metric (Euclidean distance) rather than specific class labels, the model can generalize to completely unseen writers—including the project team members.
 ---
-   - Contains 3000 forged and 2400 genuine signatures.
-   - Includes Bengali and Hindi scripts.
+
 ## Selected Strategy & Data Split
 We will first use the [**BHSig-260**](https://www.kaggle.com/datasets/ankita22053139/cedarbhsig-260) dataset, which contains 3000 forged and 2400 genuine signatures of Bengali and Hindi scripts, for training and validation, and note the performance. After that, we will apply the model to other language signature verification, for example, English, and note the performance. If the performance is unsatisfactory, we will add the [**CEDAR**](https://www.kaggle.com/datasets/ishanikathuria/handwritten-signature-datasets) Latin signatures for training and note the resulting performance improvement.
 
