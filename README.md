@@ -14,7 +14,7 @@ The core of our project is to build a One-Shot Learning system using a Siamese N
    - Contains 3000 forged and 2400 genuine signatures.
    - Includes Bengali and Hindi scripts.
 ## Selected Strategy & Data Split
-We will first use the **BHSig-260** dataset, which contains 3000 forged and 2400 genuine signatures of Bengali and Hindi scripts, for training and validation, and note the performance. After that, we will apply the model to other language signature verification, for example, English, and note the performance. If the performance is unsatisfactory, we will add the CEDAR Latin signatures for training and note the resulting performance improvement.
+We will first use the [**BHSig-260**](https://www.kaggle.com/datasets/ankita22053139/cedarbhsig-260) dataset, which contains 3000 forged and 2400 genuine signatures of Bengali and Hindi scripts, for training and validation, and note the performance. After that, we will apply the model to other language signature verification, for example, English, and note the performance. If the performance is unsatisfactory, we will add the [**CEDAR**](https://www.kaggle.com/datasets/ishanikathuria/handwritten-signature-datasets) Latin signatures for training and note the resulting performance improvement.
 
 ---
 
