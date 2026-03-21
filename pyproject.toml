@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "signature-siamese"
+version = "0.1.0"
+description = "Writer-independent offline signature verification with a Siamese CNN"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+  {name = "Shuvashish Mondal"}
+]
+dependencies = [
+  "numpy>=1.24",
+  "Pillow>=9.5",
+  "torch>=2.1",
+  "torchvision>=0.16",
+  "tensorboard>=2.12",
+  "tqdm>=4.65"
+]
+
+[tool.setuptools]
+package-dir = {"" = "siamese-shuvo/src"}
+
+[tool.setuptools.packages.find]
+where = ["siamese-shuvo/src"]

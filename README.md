@@ -109,3 +109,48 @@ For this specific assignment phase:
 *(Moving forward into the implementation phase, Kathan will lead the CNN Baseline development, while Shuvashish will lead the Siamese Network architecture).*
 
 *Disclaimer: Portions of this proposal were brainstormed and refined with the assistance of AI tools (Gemini), acting as a "senior engineer" persona to critique architectural decisions and workflow.*
+---
+
+
+## Part 3: First Update
+
+### Shuvashish Mondal — Writer-Independent Siamese Verification Track
+
+This section documents my progress on the writer-independent Siamese-network track for offline signature verification. At this stage, my goal is not to claim final performance, but to show that the full experimental pipeline is working and to identify the main challenges that need to be resolved before larger-scale training and evaluation.
+
+So far, I have implemented an end-to-end workflow around the BHSig-260 dataset. The pipeline reads and normalizes signature images, constructs writer-independent train/validation/test splits, trains a Siamese model with contrastive loss, selects thresholds on validation data, and evaluates on held-out test data using verification metrics such as FAR, FRR, ROC, AUC, and EER. I have verified this workflow through reduced-scale runs, which gives confidence that the code path is functional from data loading through final evaluation.
+
+A key design choice in my track is strict writer independence. The data is partitioned by writer ID so that no writer appears in more than one split. This matters because the real challenge is not memorizing the appearance of writers seen during training, but generalizing to new writers at evaluation time. I added explicit leakage checks to confirm that the train, validation, and test partitions remain disjoint at the writer level. This has been one of the most important implementation decisions so far, because without it the reported results would not reflect the intended task.
+
+On the modeling side, I implemented a Siamese-network training pipeline that learns an embedding space for signature verification. Each branch of the network processes one signature image, and the Euclidean distance between the two embeddings is used as the verification signal. Training uses contrastive loss,
+
+$$
+L = y d^2 + (1-y)\max(0, m-d)^2,
+$$
+
+where $y$ indicates whether the pair is positive or negative, $d$ is the embedding distance, and $m$ is the margin. In practice, the main point of this objective is to pull genuine pairs closer together while pushing negative pairs apart up to the margin. I also integrated online hard negative mining so that training emphasizes confusing negative pairs instead of spending most updates on trivial ones.
+
+In addition to the core training loop, I implemented a validation-driven thresholding procedure. Rather than tuning directly on the test set, I sweep thresholds on validation distances, choose an operating point based on validation metrics, and then lock that threshold for held-out test evaluation. This is important for keeping the evaluation protocol realistic and avoiding post hoc calibration on the final test split. The evaluation code currently reports ROC behavior, FAR, FRR, AUC, and EER, which gives a more complete view than reporting only one scalar metric.
+
+To confirm that all parts of the pipeline work together, I ran reduced-scale experiments. These runs use a deliberately small profile so that I can debug quickly and verify correctness before spending more time and compute on larger jobs. At this scale, the exact numbers are less important than the fact that the full process completes successfully and produces sensible outputs.
+
+| Metric | Interim Value |
+|---|---|
+| Reduced-profile split size | Train 72, Validation 24, Test 24 |
+| Writer split (no overlap) | Train 6, Validation 2, Test 2 |
+| Best validation EER (interim) | ~0.099 |
+| Typical validation AUC range | ~0.93 to ~0.96 |
+| Held-out test EER (interim run) | ~0.17 |
+
+These early results are encouraging in the limited sense that they show the pipeline is functional and capable of producing nontrivial separation between positive and negative pairs. At the same time, I do not view them as strong evidence of final model quality. The reduced-profile setting is small enough that run-to-run variance is noticeable, and it would be easy to over-interpret numbers that are really only serving as a systems check. For now, I treat these experiments as validation of implementation readiness rather than validation of final generalization performance.
+
+The most important part of this update is the set of challenges I am currently facing. The largest issue is moving from local prototyping to reliable CRC execution. My workflow so far has used local Apple Silicon runs for debugging and small-scale testing, which has been effective for rapid iteration. However, full experiments will require CRC GPU jobs, and that introduces practical uncertainty around scheduler conventions, resource requests, logging, checkpoint recovery, and debugging failed runs. This is my first time using the cluster, so even routine questions about submission setup can become bottlenecks.
+
+A second challenge is the computational cost of pair construction and evaluation. Verification tasks naturally create many possible pairs, and the number grows quickly as the number of writers and samples increases. At a small debugging scale this is manageable, but for larger experiments I need to decide how exhaustive the evaluation should be and whether some form of deterministic sampling is acceptable. This is both a technical and reporting issue: I want evaluation to be meaningful, but I also need the runtime to remain practical enough for repeated experiments.
+
+A third challenge is metric interpretation. I can already compute EER, FAR, FRR, ROC, and AUC, but I am still thinking carefully about what should be emphasized at this stage of the semester. EER is an attractive summary metric, but it can hide behavior at specific operating points that may matter in verification settings. At the same time, reporting too many metrics too early can make the update harder to read without adding much value. Guidance from Adam or the TA on the preferred scope of metric reporting for this checkpoint would help me avoid spending time optimizing for the wrong presentation format.
+
+
+My immediate next steps are therefore centered on making the workflow more reliable rather than making it more complicated. First, I want to run moderate-scale experiments that are larger than the current debug profile but still small enough to iterate on efficiently. Second, I want to transition the training and evaluation workflow to repeatable CRC single-GPU jobs with proper logging and checkpoint tracking. Finally, I want to settle on a reporting format that is both methodologically sound and aligned with course expectations.
+
+Overall, I believe this track has reached a good interim point: the core system is implemented, the end-to-end path works, and the current limitations are now clear enough to discuss productively. The main value of this update is not a single performance number, but a clear picture of what is working, what is uncertain, and what support would be most useful before the next milestone.
