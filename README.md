@@ -154,3 +154,39 @@ A third challenge is metric interpretation. I can already compute EER, FAR, FRR,
 My immediate next steps are therefore centered on making the workflow more reliable rather than making it more complicated. First, I want to run moderate-scale experiments that are larger than the current debug profile but still small enough to iterate on efficiently. Second, I want to transition the training and evaluation workflow to repeatable CRC single-GPU jobs with proper logging and checkpoint tracking. Finally, I want to settle on a reporting format that is both methodologically sound and aligned with course expectations.
 
 Overall, I believe this track has reached a good interim point: the core system is implemented, the end-to-end path works, and the current limitations are now clear enough to discuss productively. The main value of this update is not a single performance number, but a clear picture of what is working, what is uncertain, and what support would be most useful before the next milestone.
+
+
+## Kathan Desai — Writer-Dependent CNN Classification Track
+
+This section documents my progress on the writer-dependent CNN classification track for offline signature analysis. At this stage, my goal is not to claim a strong final performance, but to show that the baseline classification pipeline is implemented, that the end-to-end workflow is functioning, and that the main challenges are now becoming clear.
+
+So far, I have built a baseline workflow around the **BHSig260-Hindi** dataset. The pipeline reads the raw writer folders, separates genuine signatures from forged ones, constructs train/validation/test splits, preprocesses the images, trains a convolutional neural network in a multi-class classification setting, and evaluates performance on held-out data. I have verified that this workflow runs from dataset preparation through final testing, which gives confidence that the baseline code path is functional even though the current model performance is weak.
+
+A key design choice in my track is that the baseline uses **only genuine signatures** for classification. Since the goal of this part is to answer the question *“Which writer produced this signature?”* ,I treated each writer as a separate class and excluded forged samples from training. This keeps the baseline setup clean and makes it easier to interpret whether a standard CNN can learn writer-specific signature features such as stroke shape, spacing, slant, and overall writing style.
+
+On the implementation side, I wrote code to reorganize the raw BHSig260-Hindi dataset into a format suitable for PyTorch training. Each numbered folder corresponds to one writer, and filenames indicate whether a signature is genuine or forged. The preprocessing pipeline converts images to grayscale, inverts them, resizes them to a fixed input shape, and normalizes them before training. I then implemented a multi-class CNN baseline and trained it end-to-end as a writer classifier.
+
+The current interim experiment used:
+
+- **160 writer classes**
+- **2560 training samples**
+- **480 validation samples**
+- **800 test samples**
+
+The current results are:
+
+- **Best validation accuracy:** 0.0063
+- **Final test accuracy:** 0.0063
+- **Final test loss:** 5.0755
+
+These results are not strong in a performance sense. In fact, they are very close to what would be expected from random guessing over 160 classes. I therefore do not interpret them as evidence that the current CNN baseline is learning meaningful writer separation yet. Instead, I view them as an important interim result because they show that the baseline pipeline is implemented well enough to run end-to-end, while also making it clear that the current formulation is too difficult for this simple setup.
+
+The main challenge I am currently facing is the difficulty of the classification problem itself. Although the total number of images is not small, the number of genuine samples per writer is limited once the dataset is split into training, validation, and test sets. This means the model is being asked to distinguish many writers using only a modest number of examples per class. In practice, this is a difficult learning problem, especially because signatures are visually sparse and often differ only in subtle ways.
+
+A second challenge is preprocessing sensitivity. Signature images contain much less visual information than natural images, so small choices in resizing, inversion, and normalization may have a significant impact on what the model learns. I am still evaluating whether the current preprocessing choices are the best ones for this dataset or whether the model is losing too much useful structure before training even begins.
+
+A third challenge is deciding how much to improve this baseline before shifting more attention to the Siamese verification model. One interpretation of the weak baseline result is that the current CNN architecture or training setup needs improvement. Another interpretation is that this already highlights the limitation of writer-dependent classification and strengthens the motivation for a writer-independent verification approach. Guidance from Adam or the TA would be especially helpful here, particularly on whether I should spend more time simplifying and improving the baseline or treat this as a sufficient baseline checkpoint and move more strongly toward verification.
+
+My immediate next steps are therefore focused on making the baseline more informative rather than simply making it larger. First, I want to inspect the training behavior more closely and test whether the network can learn on a smaller subset of writers. Second, I want to try mild augmentation and a few controlled preprocessing adjustments. Finally, I want to use what I learn from this baseline to better support the later comparison with the Siamese verification model.
+
+Overall, I believe this track has reached a useful interim point: the baseline system is implemented, the end-to-end workflow is working, and the current limitations are clear enough to discuss productively. The main value of this update is not a strong performance number, but a clearer understanding of what is working, what is difficult, and what support would be most useful before the next milestone.
