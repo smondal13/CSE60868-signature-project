@@ -1,0 +1,27 @@
+{
+  "sample_counts": {
+    "test": 2808,
+    "train": 8424,
+    "val": 2808
+  },
+  "script_sample_counts": {
+    "test": {
+      "bengali": 1080,
+      "hindi": 1728
+    },
+    "train": {
+      "bengali": 3240,
+      "hindi": 5184
+    },
+    "val": {
+      "bengali": 1080,
+      "hindi": 1728
+    }
+  },
+  "total_rows": 14040,
+  "writer_counts": {
+    "test": 52,
+    "train": 156,
+    "val": 52
+  }
+}

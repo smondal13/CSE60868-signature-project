@@ -207,3 +207,12 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 instructions.md
+
+# Project outputs/artifacts
+runs/
+results/
+logs/
+checkpoints/
+manifests/*.csv
+manifests/*.json
+siamese-shuvo/memory.md
