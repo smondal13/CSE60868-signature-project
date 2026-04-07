@@ -34,7 +34,7 @@ from .utils import dump_json, ensure_dir, set_seed, timestamp_tag
 # -----------------------------------------------------------------------------
 # "small": fast sanity-check run on the small manifest.
 # "full": full-scale training settings.
-RUN_PROFILE = "small"
+RUN_PROFILE = "full"  # small | full
 
 # Shared image geometry expected by the preprocessing pipeline.
 IMAGE_HEIGHT = 155
