@@ -209,7 +209,7 @@ __marimo__/
 instructions.md
 
 # Project outputs/artifacts
-results/
+
 logs/
 manifests/*.csv
 manifests/*.json

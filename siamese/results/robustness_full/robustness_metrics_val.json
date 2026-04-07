@@ -1,0 +1,151 @@
+{
+  "checkpoint": "siamese/runs/siamese_full_20260407-155459/checkpoints/best.pt",
+  "device": "cuda",
+  "locked_threshold": 0.7842264901426501,
+  "pair_counts": {
+    "positive": 14352,
+    "random_impostor": 10324,
+    "skilled": 37440
+  },
+  "run_profile": "full",
+  "split": "val",
+  "sweep": [
+    {
+      "config": {
+        "kind": "none",
+        "name": "baseline"
+      },
+      "delta_from_baseline": {
+        "auc": 0.0,
+        "eer": 0.0,
+        "far_at_locked_threshold": 0.0,
+        "frr_at_locked_threshold": 0.0
+      },
+      "metrics": {
+        "auc": 0.9785185985207183,
+        "eer": 0.07562081525508593,
+        "eer_threshold": 0.7826525294941744,
+        "far_at_eer": 0.07543338078887865,
+        "far_at_locked_threshold": 0.07624989531865004,
+        "frr_at_eer": 0.0758082497212932,
+        "frr_at_locked_threshold": 0.07469342251950947,
+        "n_pairs": 62116
+      }
+    },
+    {
+      "config": {
+        "degrees": 3.0,
+        "kind": "rotate",
+        "name": "rotate_p3"
+      },
+      "delta_from_baseline": {
+        "auc": -0.02325214428133604,
+        "eer": 0.03939876622584264,
+        "far_at_locked_threshold": 0.010007537057197882,
+        "frr_at_locked_threshold": 0.07044314381270902
+      },
+      "metrics": {
+        "auc": 0.9552664542393823,
+        "eer": 0.11501958148092857,
+        "eer_threshold": 0.8212769688584615,
+        "far_at_eer": 0.11500293107779917,
+        "far_at_locked_threshold": 0.08625743237584792,
+        "frr_at_eer": 0.11503623188405797,
+        "frr_at_locked_threshold": 0.1451365663322185,
+        "n_pairs": 62116
+      }
+    },
+    {
+      "config": {
+        "degrees": -3.0,
+        "kind": "rotate",
+        "name": "rotate_m3"
+      },
+      "delta_from_baseline": {
+        "auc": -0.023287284596824387,
+        "eer": 0.041637284117180734,
+        "far_at_locked_threshold": 0.014194791056025446,
+        "frr_at_locked_threshold": 0.0710005574136009
+      },
+      "metrics": {
+        "auc": 0.9552313139238939,
+        "eer": 0.11725809937226667,
+        "eer_threshold": 0.8171917226104035,
+        "far_at_eer": 0.1173896658571309,
+        "far_at_locked_threshold": 0.09044468637467548,
+        "frr_at_eer": 0.11712653288740245,
+        "frr_at_locked_threshold": 0.14569397993311037,
+        "n_pairs": 62116
+      }
+    },
+    {
+      "config": {
+        "kind": "resolution",
+        "name": "resolution_50",
+        "scale": 0.5
+      },
+      "delta_from_baseline": {
+        "auc": -0.3181131442536077,
+        "eer": 0.3029858978000065,
+        "far_at_locked_threshold": -0.009567875387320998,
+        "frr_at_locked_threshold": 0.7698578595317725
+      },
+      "metrics": {
+        "auc": 0.6604054542671106,
+        "eer": 0.3786067130550924,
+        "eer_threshold": 1.1292034407566045,
+        "far_at_eer": 0.37838120760405325,
+        "far_at_locked_threshold": 0.06668201993132904,
+        "frr_at_eer": 0.3788322185061315,
+        "frr_at_locked_threshold": 0.844551282051282,
+        "n_pairs": 62116
+      }
+    },
+    {
+      "config": {
+        "delta_pixels": 1,
+        "kind": "thickness",
+        "name": "thickness_plus1"
+      },
+      "delta_from_baseline": {
+        "auc": -0.32494230184555684,
+        "eer": 0.3089027718687859,
+        "far_at_locked_threshold": -0.0037057197889624055,
+        "frr_at_locked_threshold": 0.7246376811594203
+      },
+      "metrics": {
+        "auc": 0.6535762966751615,
+        "eer": 0.38452358712387186,
+        "eer_threshold": 1.0809714504931796,
+        "far_at_eer": 0.3844317896323591,
+        "far_at_locked_threshold": 0.07254417552968763,
+        "frr_at_eer": 0.38461538461538464,
+        "frr_at_locked_threshold": 0.7993311036789298,
+        "n_pairs": 62116
+      }
+    },
+    {
+      "config": {
+        "delta_pixels": -1,
+        "kind": "thickness",
+        "name": "thickness_minus1"
+      },
+      "delta_from_baseline": {
+        "auc": -0.4957573564964569,
+        "eer": 0.4364075620033354,
+        "far_at_locked_threshold": -0.024307009463194043,
+        "frr_at_locked_threshold": 0.8738851727982162
+      },
+      "metrics": {
+        "auc": 0.4827612420242614,
+        "eer": 0.5120283772584213,
+        "eer_threshold": 1.3013431088306595,
+        "far_at_eer": 0.5115149484967758,
+        "far_at_locked_threshold": 0.05194288585545599,
+        "frr_at_eer": 0.5125418060200669,
+        "frr_at_locked_threshold": 0.9485785953177257,
+        "n_pairs": 62116
+      }
+    }
+  ]
+}
