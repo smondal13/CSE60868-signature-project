@@ -211,7 +211,6 @@ instructions.md
 # Project outputs/artifacts
 results/
 logs/
-checkpoints/
 manifests/*.csv
 manifests/*.json
 siamese-shuvo/memory.md
