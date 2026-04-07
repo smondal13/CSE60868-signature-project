@@ -4,7 +4,7 @@ This module intentionally uses top-level editable variables instead of argparse.
 Edit the configuration block below, then run:
 
     SIGNATURE_DATA_ROOT=/path/to/cedar-bhsig260 \
-    PYTHONPATH=siamese-shuvo/src \
+    PYTHONPATH=siamese/src \
     conda run -n machine-learning python -m signature_siamese.evaluate
 """
 
@@ -38,9 +38,9 @@ SPLIT = "val"  # "val" or "test"
 
 if RUN_PROFILE == "small":
     # Small-profile evaluation parameters for fast turnaround.
-    MANIFEST_CSV = Path("siamese-shuvo/manifests/bhsig260_small_manifest.csv")
+    MANIFEST_CSV = Path("siamese/manifests/bhsig260_small_manifest.csv")
     RUN_NAME_PREFIX = "small_debug"
-    OUTPUT_DIR = Path("siamese-shuvo/results/small_debug")
+    OUTPUT_DIR = Path("siamese/results/small_debug")
     EVAL_BATCH_SIZE = 256
     THRESHOLD_POINTS = 400
     MAX_SKILLED_FORGERIES_PER_WRITER = 20
@@ -48,9 +48,9 @@ if RUN_PROFILE == "small":
     NUM_WORKERS = 0
 elif RUN_PROFILE == "full":
     # Full-profile evaluation parameters for report-quality metrics.
-    MANIFEST_CSV = Path("siamese-shuvo/manifests/bhsig260_manifest.csv")
+    MANIFEST_CSV = Path("siamese/manifests/bhsig260_manifest.csv")
     RUN_NAME_PREFIX = "siamese_full"
-    OUTPUT_DIR = Path("siamese-shuvo/results/full")
+    OUTPUT_DIR = Path("siamese/results/full")
     EVAL_BATCH_SIZE = 128
     THRESHOLD_POINTS = 2000
     MAX_SKILLED_FORGERIES_PER_WRITER = 720
@@ -111,7 +111,7 @@ def _save_roc_csv(path: Path, curve_payload: dict[str, list[float]]) -> None:
 
 
 def _resolve_latest_checkpoint_by_prefix(
-    prefix: str, runs_root: Path = Path("siamese-shuvo/runs")
+    prefix: str, runs_root: Path = Path("siamese/runs")
 ) -> Path:
     # Find most recent run folder matching the configured name prefix.
     candidates = sorted(

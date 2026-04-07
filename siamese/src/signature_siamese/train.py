@@ -4,7 +4,7 @@ This module intentionally uses top-level editable variables instead of argparse.
 Edit the configuration block below, then run:
 
     SIGNATURE_DATA_ROOT=/path/to/cedar-bhsig260 \
-    PYTHONPATH=siamese-shuvo/src \
+    PYTHONPATH=siamese/src \
     conda run -n machine-learning python -m signature_siamese.train
 """
 
@@ -62,11 +62,11 @@ SEED = 42
 DEVICE = "auto"  # auto | cuda | mps | cpu
 
 # Root output directory for runs/checkpoints/tensorboard.
-OUTPUT_ROOT = Path("siamese-shuvo/runs")
+OUTPUT_ROOT = Path("siamese/runs")
 
 if RUN_PROFILE == "small":
     # Small-profile manifest and conservative settings for rapid debugging.
-    MANIFEST_CSV = Path("siamese-shuvo/manifests/bhsig260_small_manifest.csv")
+    MANIFEST_CSV = Path("siamese/manifests/bhsig260_small_manifest.csv")
     RUN_NAME = "small_debug"
     EPOCHS = 20
     WRITERS_PER_BATCH = 4
@@ -79,7 +79,7 @@ if RUN_PROFILE == "small":
     NUM_WORKERS = 0
 elif RUN_PROFILE == "full":
     # Full-profile manifest and larger settings for final experiments.
-    MANIFEST_CSV = Path("siamese-shuvo/manifests/bhsig260_manifest.csv")
+    MANIFEST_CSV = Path("siamese/manifests/bhsig260_manifest.csv")
     RUN_NAME = "siamese_full"
     EPOCHS = 30
     WRITERS_PER_BATCH = 8
