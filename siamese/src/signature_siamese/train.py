@@ -3,7 +3,9 @@
 This module intentionally uses top-level editable variables instead of argparse.
 Edit the configuration block below, then run:
 
-    PYTHONPATH=siamese-shuvo/src conda run -n machine-learning python -m signature_siamese.train
+    SIGNATURE_DATA_ROOT=/path/to/cedar-bhsig260 \
+    PYTHONPATH=siamese-shuvo/src \
+    conda run -n machine-learning python -m signature_siamese.train
 """
 
 from __future__ import annotations
@@ -245,6 +247,7 @@ def main() -> None:
             # Move inputs and metadata to device.
             images = batch["image"].to(device)
             writer_ids = batch["writer_id"].to(device)
+            script_ids = batch["script_id"].to(device)
             is_genuine = batch["is_genuine"].to(device)
 
             optimizer.zero_grad(set_to_none=True)
@@ -255,6 +258,7 @@ def main() -> None:
                     embeddings=embeddings,
                     writer_ids=writer_ids,
                     is_genuine=is_genuine,
+                    script_ids=script_ids,
                     hard_negatives_per_positive=HARD_NEGATIVES_PER_POSITIVE,
                     include_cross_writer_negatives=INCLUDE_CROSS_WRITER_NEGATIVES,
                 )

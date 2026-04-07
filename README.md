@@ -13,7 +13,7 @@ The core of our project is to build a One-Shot Learning system using a Siamese N
 ---
 
 ## Selected Strategy & Data Split
-We will first use the [**BHSig-260**](https://www.kaggle.com/datasets/ishanikathuria/handwritten-signature-datasets/data) dataset, which contains 3000 forged and 2400 genuine signatures of Bengali and Hindi scripts, for training and validation, and note the performance. After that, we will apply the model to other language signature verification, for example, English, and note the performance. If the performance is unsatisfactory, we will add the [**CEDAR**](https://www.kaggle.com/datasets/ishanikathuria/handwritten-signature-datasets/data) Latin signatures for training and note the resulting performance improvement.
+We will first use the [**BHSig-260**](https://www.kaggle.com/datasets/ishanikathuria/handwritten-signature-datasets/data) dataset, which contains 7800 forged and 6240 genuine signatures across Bengali and Hindi scripts, for training and validation, and note the performance. After that, we will apply the model to other language signature verification, for example, English, and note the performance. If the performance is unsatisfactory, we will add the [**CEDAR**](https://www.kaggle.com/datasets/ishanikathuria/handwritten-signature-datasets/data) Latin signatures for training and note the resulting performance improvement.
 
 ---
 
@@ -87,7 +87,7 @@ To start actual development of the project solutions, we have acquired appropria
 
 ### 2. Characterization of Samples and Subjects
 Our acquired database consists of offline handwritten signatures. Unlike online signatures that capture dynamic time-series data, offline signatures are static images extracted from scanned documents. 
-* **Subjects and Volume:** It is important to note that a signature dataset does not contain just one unique signature per person. To train a verification model, the network must learn the natural variance in how a single person signs their name. Therefore, each identity in our dataset provides multiple genuine specimens and has multiple skilled forgeries associated with them. The BHSig-260 dataset contains 3000 forged and 2400 genuine signatures. The CEDAR dataset contains signatures by 55 people, where each person has 24 genuine and 24 forged signatures.
+* **Subjects and Volume:** It is important to note that a signature dataset does not contain just one unique signature per person. To train a verification model, the network must learn the natural variance in how a single person signs their name. Therefore, each identity in our dataset provides multiple genuine specimens and has multiple skilled forgeries associated with them. The Bengali and Hindi portions of the BHSig-260 dataset together contain 7800 forged and 6240 genuine signatures. The CEDAR dataset contains signatures by 55 people, where each person has 24 genuine and 24 forged signatures.
 * **Sensors and Ambient Conditions:** Because these are offline datasets, the sensors used to capture them were standard high-resolution flatbed optical scanners. The ambient conditions involved standard indoor lighting, and the physical medium was ink on white paper.
 * **Resolution and Preprocessing:** The raw signature images come in varying resolutions. To standardize this for our neural networks, our preprocessing pipeline will invert the images (black background, white ink) and resize them to a fixed target of 155 by 220 pixels. Inverting the images helps neutralize ambient background noise so the network focuses purely on stroke geometry.
 
@@ -136,8 +136,8 @@ To confirm that all parts of the pipeline work together, I ran reduced-scale exp
 
 | Metric | Interim Value |
 |---|---|
-| Reduced-profile split size | Train 72, Validation 24, Test 24 |
-| Writer split (no overlap) | Train 6, Validation 2, Test 2 |
+| Reduced-profile split size | Train 480, Validation 160, Test 160 |
+| Writer split (no overlap) | Train 24, Validation 8, Test 8 |
 | Best validation EER (interim) | ~0.099 |
 | Typical validation AUC range | ~0.93 to ~0.96 |
 | Held-out test EER (interim run) | ~0.17 |

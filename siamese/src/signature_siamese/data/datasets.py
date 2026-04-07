@@ -9,6 +9,7 @@ from typing import Any
 
 from torch.utils.data import Dataset
 
+from ..paths import resolve_manifest_image_path
 from .transforms import SignaturePreprocessor
 
 
@@ -64,12 +65,14 @@ class SignatureDataset(Dataset[dict[str, Any]]):
         split: str,
         image_height: int = 155,
         image_width: int = 220,
+        data_root: Path | None = None,
     ) -> None:
         if split not in {"train", "val", "test"}:
             raise ValueError(f"Unknown split '{split}'. Expected train/val/test.")
 
         self.manifest_csv = manifest_csv
         self.split = split
+        self.data_root = data_root
         self.preprocessor = SignaturePreprocessor(
             image_height=image_height,
             image_width=image_width,
@@ -77,6 +80,10 @@ class SignatureDataset(Dataset[dict[str, Any]]):
 
         all_rows = load_manifest_rows(manifest_csv)
         self.writer_to_int = build_writer_label_map(all_rows)
+        script_labels = sorted({row["script"] for row in all_rows})
+        self.script_to_int = {
+            script_label: idx for idx, script_label in enumerate(script_labels)
+        }
 
         self.samples = [
             _row_to_record(row)
@@ -103,12 +110,18 @@ class SignatureDataset(Dataset[dict[str, Any]]):
 
     def __getitem__(self, index: int) -> dict[str, Any]:
         sample = self.samples[index]
-        image = self.preprocessor(sample.image_path)
+        image_path = resolve_manifest_image_path(
+            sample.image_path,
+            data_root=self.data_root,
+        )
+        image = self.preprocessor(image_path)
 
         return {
             "image": image,
             "writer_id": self.writer_to_int[sample.writer_key],
+            "script_id": self.script_to_int[sample.script],
+            "script": sample.script,
             "writer_key": sample.writer_key,
             "is_genuine": sample.is_genuine,
-            "path": str(sample.image_path),
+            "path": str(image_path),
         }

@@ -1,4 +1,19 @@
 {
+  "label_sample_counts": {
+    "test": {
+      "forgery": 1560,
+      "genuine": 1248
+    },
+    "train": {
+      "forgery": 4680,
+      "genuine": 3744
+    },
+    "val": {
+      "forgery": 1560,
+      "genuine": 1248
+    }
+  },
+  "profile": "full",
   "sample_counts": {
     "test": 2808,
     "train": 8424,

@@ -34,6 +34,7 @@ def mine_pairs_from_batch(
     embeddings: torch.Tensor,
     writer_ids: torch.Tensor,
     is_genuine: torch.Tensor,
+    script_ids: torch.Tensor | None = None,
     hard_negatives_per_positive: int = 2,
     include_cross_writer_negatives: bool = True,
 ) -> MiningOutput:
@@ -44,7 +45,7 @@ def mine_pairs_from_batch(
 
     Negative candidates:
       - genuine/forgery mix for same writer
-      - optional cross-writer pairs
+      - optional same-script cross-writer pairs
 
     Hard negatives are chosen by smallest embedding distance.
     """
@@ -57,10 +58,16 @@ def mine_pairs_from_batch(
 
     writer_ids = writer_ids.detach().cpu().tolist()
     is_genuine = is_genuine.detach().cpu().tolist()
+    script_ids_list = (
+        script_ids.detach().cpu().tolist()
+        if script_ids is not None
+        else [0] * batch_size
+    )
 
     for i in range(batch_size):
         for j in range(i + 1, batch_size):
             same_writer = writer_ids[i] == writer_ids[j]
+            same_script = script_ids_list[i] == script_ids_list[j]
             both_genuine = bool(is_genuine[i]) and bool(is_genuine[j])
 
             if same_writer and both_genuine:
@@ -69,10 +76,14 @@ def mine_pairs_from_batch(
                 continue
 
             mixed_same_writer = same_writer and (bool(is_genuine[i]) != bool(is_genuine[j]))
-            cross_writer = (not same_writer) and include_cross_writer_negatives
+            cross_writer = (
+                (not same_writer)
+                and same_script
+                and include_cross_writer_negatives
+            )
             if mixed_same_writer or cross_writer:
                 # Candidate negatives include skilled (same writer, mixed label)
-                # and optionally random cross-writer pairs.
+                # and optionally same-script random cross-writer pairs.
                 negative_candidates.append((i, j))
 
     device = embeddings.device

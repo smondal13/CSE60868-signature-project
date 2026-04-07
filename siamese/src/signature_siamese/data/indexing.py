@@ -8,6 +8,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterable
 
+from ..paths import to_manifest_path
+
 IMAGE_EXTENSIONS = {".tif", ".tiff", ".png", ".jpg", ".jpeg", ".bmp"}
 # Expected BHSig naming pattern:
 #   <script>-S-<writer_id>-<F|G>-<sample_id>.<ext>
@@ -53,7 +55,11 @@ def _iter_image_files(writer_dir: Path) -> list[Path]:
     return image_files
 
 
-def scan_bhsig_root(root_dir: Path, script: str) -> list[SignatureRecord]:
+def scan_bhsig_root(
+    root_dir: Path,
+    script: str,
+    path_root: Path | None = None,
+) -> list[SignatureRecord]:
     """Scan one dataset root and return normalized signature records."""
     script = _normalize_script_label(script)
     records: list[SignatureRecord] = []
@@ -86,7 +92,9 @@ def scan_bhsig_root(root_dir: Path, script: str) -> list[SignatureRecord]:
                     script=script,
                     writer_id=writer_id,
                     writer_key=writer_key,
-                    image_path=str(image_path.resolve()),
+                    image_path=to_manifest_path(image_path, path_root)
+                    if path_root is not None
+                    else str(image_path.resolve()),
                     file_name=image_path.name,
                     is_genuine=is_genuine,
                     sample_index=int(sample_token),
