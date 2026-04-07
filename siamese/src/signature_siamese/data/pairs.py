@@ -139,9 +139,15 @@ def build_verification_pairs(
 class VerificationPairDataset(Dataset[dict[str, Any]]):
     """Dataset that serves deterministic verification pairs."""
 
-    def __init__(self, base_dataset: SignatureDataset, pairs: list[VerificationPair]) -> None:
+    def __init__(
+        self,
+        base_dataset: SignatureDataset,
+        pairs: list[VerificationPair],
+        query_transform: Any | None = None,
+    ) -> None:
         self.base_dataset = base_dataset
         self.pairs = pairs
+        self.query_transform = query_transform
 
     def __len__(self) -> int:
         return len(self.pairs)
@@ -152,18 +158,23 @@ class VerificationPairDataset(Dataset[dict[str, Any]]):
         sample_a = self.base_dataset.samples[pair.idx_a]
         sample_b = self.base_dataset.samples[pair.idx_b]
 
-        image_a = self.base_dataset.preprocessor(
+        image_a_pil = self.base_dataset.preprocessor.load_image(
             resolve_manifest_image_path(
                 sample_a.image_path,
                 data_root=self.base_dataset.data_root,
             )
         )
-        image_b = self.base_dataset.preprocessor(
+        image_b_pil = self.base_dataset.preprocessor.load_image(
             resolve_manifest_image_path(
                 sample_b.image_path,
                 data_root=self.base_dataset.data_root,
             )
         )
+        if self.query_transform is not None:
+            image_b_pil = self.query_transform(image_b_pil)
+
+        image_a = self.base_dataset.preprocessor.to_tensor(image_a_pil)
+        image_b = self.base_dataset.preprocessor.to_tensor(image_b_pil)
 
         return {
             "image_a": image_a,

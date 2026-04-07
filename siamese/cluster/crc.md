@@ -258,6 +258,81 @@ Recommended workflow:
 
 1. Train on CRC.
 2. Copy the best checkpoint back to your Mac.
+3. Run either standard evaluation or the robustness sweep locally.
+
+## 14. Run The Robustness Sweep
+
+The robustness script keeps the trained model fixed and perturbs only the query
+signature in each verification pair. This helps measure whether the model is
+learning writer traits or leaning too heavily on dataset-specific scan
+properties.
+
+The current sweep includes:
+
+- baseline
+- small rotations (`+3` and `-3` degrees)
+- lower resolution (`50%`, then resized back)
+- thicker strokes (`+1` pixel)
+- thinner strokes (`-1` pixel)
+
+### Local Run
+
+Use this when you have already copied `best.pt` back from CRC:
+
+```bash
+cd /Users/smondal/Documents/Github/CSE60868-signature-project
+conda activate machine-learning
+export PYTHONPATH=$PWD/siamese/src
+export SIGNATURE_DATA_ROOT="/Users/smondal/Library/CloudStorage/GoogleDrive-smondal@nd.edu/My Drive/1. ND/1. PhD courses/Spring 26/Project/cedar-bhsig260"
+export SIGNATURE_RUN_PROFILE=full
+export SIGNATURE_EVAL_SPLIT=test
+export SIGNATURE_CHECKPOINT_PATH="$PWD/siamese/runs/siamese_full_YYYYMMDD-HHMMSS/checkpoints/best.pt"
+python -m signature_siamese.evaluate_robustness
+```
+
+For a quick smoke test on the small local run:
+
+```bash
+cd /Users/smondal/Documents/Github/CSE60868-signature-project
+conda activate machine-learning
+export PYTHONPATH=$PWD/siamese/src
+export SIGNATURE_DATA_ROOT="/Users/smondal/Library/CloudStorage/GoogleDrive-smondal@nd.edu/My Drive/1. ND/1. PhD courses/Spring 26/Project/cedar-bhsig260"
+export SIGNATURE_RUN_PROFILE=small
+export SIGNATURE_EVAL_SPLIT=test
+export SIGNATURE_CHECKPOINT_PATH="$PWD/siamese/runs/small_debug_YYYYMMDD-HHMMSS/checkpoints/best.pt"
+python -m signature_siamese.evaluate_robustness
+```
+
+Outputs are written to:
+
+- `siamese/results/robustness_full/robustness_metrics_test.json`
+- `siamese/results/robustness_full/robustness_summary_test.csv`
+
+### CRC Batch Run
+
+The repo includes a ready-to-submit batch script:
+
+```bash
+qsub ~/signature-project/repo/siamese/cluster/robustness_crc.job
+```
+
+That job:
+
+- activates `machine-learning`
+- uses the CRC Bengali/Hindi dataset copy
+- runs the full-profile robustness sweep on the held-out test split
+- auto-selects the latest `siamese_full` checkpoint unless
+  `SIGNATURE_CHECKPOINT_PATH` is set explicitly
+
+Monitor it with:
+
+```bash
+qstat -u smondal
+```
+
+Results will be saved under:
+
+- `~/signature-project/repo/siamese/results/robustness_full/`
 3. Evaluate and plot locally.
 
 Example copy-back command from your Mac:
