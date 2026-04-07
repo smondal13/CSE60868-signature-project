@@ -1,0 +1,15 @@
+name: machine-learning
+channels:
+  - pytorch
+  - conda-forge
+dependencies:
+  - python=3.11
+  - numpy>=1.24
+  - pandas>=2.1
+  - pillow>=9.5
+  - pytorch>=2.1
+  - torchvision>=0.16
+  - tensorboard>=2.12
+  - tqdm>=4.65
+  - matplotlib>=3.8
+  - pip

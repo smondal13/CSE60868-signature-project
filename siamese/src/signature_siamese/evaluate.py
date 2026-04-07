@@ -3,7 +3,9 @@
 This module intentionally uses top-level editable variables instead of argparse.
 Edit the configuration block below, then run:
 
-    PYTHONPATH=siamese-shuvo/src conda run -n machine-learning python -m signature_siamese.evaluate
+    SIGNATURE_DATA_ROOT=/path/to/cedar-bhsig260 \
+    PYTHONPATH=siamese-shuvo/src \
+    conda run -n machine-learning python -m signature_siamese.evaluate
 """
 
 from __future__ import annotations

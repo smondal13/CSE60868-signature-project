@@ -3,7 +3,9 @@
 This module intentionally uses top-level editable variables instead of argparse.
 Edit the configuration block below, then run:
 
-    PYTHONPATH=siamese-shuvo/src conda run -n machine-learning python -m signature_siamese.prepare_data
+    SIGNATURE_DATA_ROOT=/path/to/cedar-bhsig260 \
+    PYTHONPATH=siamese-shuvo/src \
+    conda run -n machine-learning python -m signature_siamese.prepare_data
 """
 
 from __future__ import annotations
@@ -18,6 +20,7 @@ from .data.indexing import (
     scan_bhsig_root,
     write_records_csv,
 )
+from .paths import resolve_data_root
 from .data.splits import (
     assign_writer_independent_splits,
     summarize_split,
@@ -28,16 +31,12 @@ from .utils import dump_json
 # -----------------------------------------------------------------------------
 # Top-level configuration (edit these values directly)
 # -----------------------------------------------------------------------------
-# Root directory for Bengali signatures. The resolver accepts either:
-# 1) a direct writer root (.../BHSig260-Bengali), or
-# 2) a parent that contains one writer-root child folder.
-BENGALI_ROOT = Path(
-    "/Users/shuvashishmondal/Library/CloudStorage/GoogleDrive-smondal@nd.edu/My Drive/1. ND/1. PhD courses/Spring 26/Project/cedar-bhsig260/BHSig260-Bengali"
-)
-# Root directory for Hindi signatures (same resolution behavior as above).
-HINDI_ROOT = Path(
-    "/Users/shuvashishmondal/Library/CloudStorage/GoogleDrive-smondal@nd.edu/My Drive/1. ND/1. PhD courses/Spring 26/Project/cedar-bhsig260/BHSig260-Hindi"
-)
+# Root directory that contains the Bengali and Hindi dataset folders.
+# Leave as None to auto-detect from SIGNATURE_DATA_ROOT or known local roots.
+DATA_ROOT: Path | None = None
+# Child folder names under DATA_ROOT for the scripts we currently use.
+BENGALI_DIRNAME = "BHSig260-Bengali"
+HINDI_DIRNAME = "BHSig260-Hindi"
 
 # Choose one: "full" (all signatures) or "small" (sanity-check subset).
 DATASET_PROFILE = "small"
@@ -218,12 +217,21 @@ def _records_to_rows(records: list[SignatureRecord]) -> list[dict[str, str]]:
 def main() -> None:
     targets = _select_profile_targets(DATASET_PROFILE)
 
-    # Resolve the exact writer roots from user-provided top-level paths.
-    bengali_root = resolve_writer_root(BENGALI_ROOT)
-    hindi_root = resolve_writer_root(HINDI_ROOT)
+    # Resolve the exact writer roots from a machine-portable dataset root.
+    data_root = resolve_data_root(explicit=DATA_ROOT)
+    bengali_root = resolve_writer_root(data_root / BENGALI_DIRNAME)
+    hindi_root = resolve_writer_root(data_root / HINDI_DIRNAME)
 
-    bengali_records = scan_bhsig_root(bengali_root, script="bengali")
-    hindi_records = scan_bhsig_root(hindi_root, script="hindi")
+    bengali_records = scan_bhsig_root(
+        bengali_root,
+        script="bengali",
+        path_root=data_root,
+    )
+    hindi_records = scan_bhsig_root(
+        hindi_root,
+        script="hindi",
+        path_root=data_root,
+    )
     merged_records = merge_records([bengali_records, hindi_records])
 
     # Keep a full raw index for traceability, even when building the small profile.
@@ -251,6 +259,7 @@ def main() -> None:
 
     print("Manifest generated:")
     print(f"  Profile: {DATASET_PROFILE}")
+    print(f"  Data root: {data_root}")
     print(f"  Raw index: {RAW_INDEX_CSV}")
     print(f"  Split manifest: {targets.manifest_csv}")
     print(f"  Stats JSON: {targets.stats_json}")

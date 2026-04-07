@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import random
+from collections import defaultdict
 from dataclasses import dataclass
 from itertools import combinations
 from typing import Any, Iterator
 
 from torch.utils.data import Dataset
 
+from ..paths import resolve_manifest_image_path
 from .datasets import SignatureDataset
 
 
@@ -62,7 +64,7 @@ def build_verification_pairs(
 
     Negative pairs:
       - genuine vs skilled forgery of the same writer.
-      - optional random cross-writer genuine-vs-genuine impostor pairs.
+      - optional same-script random cross-writer genuine-vs-genuine impostor pairs.
     """
     rng = random.Random(seed)
     pairs: list[VerificationPair] = []
@@ -88,19 +90,27 @@ def build_verification_pairs(
             pairs.append(VerificationPair(idx_a=idx_a, idx_b=idx_b, label=0, pair_type="skilled"))
 
     if include_cross_writer_impostors:
-        # Cross-writer impostors model random forgery attempts.
+        # Cross-writer impostors model random forgery attempts while keeping the
+        # script fixed so the task does not get artificially easier.
         all_genuine_by_writer = {
             writer_key: list(dataset.writer_to_genuine_indices.get(writer_key, []))
             for writer_key in writer_keys
         }
+        script_to_writer_keys: dict[str, list[str]] = defaultdict(list)
+        for writer_key in writer_keys:
+            script = writer_key.split("_", maxsplit=1)[0]
+            script_to_writer_keys[script].append(writer_key)
+
+        seen_random_impostors: set[tuple[int, int]] = set()
 
         for writer_key in writer_keys:
             own = all_genuine_by_writer[writer_key]
+            script = writer_key.split("_", maxsplit=1)[0]
             other = [
                 idx
-                for other_writer, indices in all_genuine_by_writer.items()
+                for other_writer in script_to_writer_keys[script]
                 if other_writer != writer_key
-                for idx in indices
+                for idx in all_genuine_by_writer[other_writer]
             ]
             random_pairs = _sample_unique_cartesian_pairs(
                 rng=rng,
@@ -109,6 +119,10 @@ def build_verification_pairs(
                 max_pairs=max_random_impostors_per_writer,
             )
             for idx_a, idx_b in random_pairs:
+                pair_key = (min(idx_a, idx_b), max(idx_a, idx_b))
+                if pair_key in seen_random_impostors:
+                    continue
+                seen_random_impostors.add(pair_key)
                 pairs.append(
                     VerificationPair(
                         idx_a=idx_a,
@@ -138,8 +152,18 @@ class VerificationPairDataset(Dataset[dict[str, Any]]):
         sample_a = self.base_dataset.samples[pair.idx_a]
         sample_b = self.base_dataset.samples[pair.idx_b]
 
-        image_a = self.base_dataset.preprocessor(sample_a.image_path)
-        image_b = self.base_dataset.preprocessor(sample_b.image_path)
+        image_a = self.base_dataset.preprocessor(
+            resolve_manifest_image_path(
+                sample_a.image_path,
+                data_root=self.base_dataset.data_root,
+            )
+        )
+        image_b = self.base_dataset.preprocessor(
+            resolve_manifest_image_path(
+                sample_b.image_path,
+                data_root=self.base_dataset.data_root,
+            )
+        )
 
         return {
             "image_a": image_a,

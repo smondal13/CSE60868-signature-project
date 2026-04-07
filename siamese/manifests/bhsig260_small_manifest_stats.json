@@ -1,0 +1,42 @@
+{
+  "label_sample_counts": {
+    "test": {
+      "forgery": 80,
+      "genuine": 80
+    },
+    "train": {
+      "forgery": 240,
+      "genuine": 240
+    },
+    "val": {
+      "forgery": 80,
+      "genuine": 80
+    }
+  },
+  "profile": "small",
+  "sample_counts": {
+    "test": 160,
+    "train": 480,
+    "val": 160
+  },
+  "script_sample_counts": {
+    "test": {
+      "bengali": 80,
+      "hindi": 80
+    },
+    "train": {
+      "bengali": 240,
+      "hindi": 240
+    },
+    "val": {
+      "bengali": 80,
+      "hindi": 80
+    }
+  },
+  "total_rows": 800,
+  "writer_counts": {
+    "test": 8,
+    "train": 24,
+    "val": 8
+  }
+}
