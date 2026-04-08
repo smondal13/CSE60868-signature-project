@@ -1,0 +1,22 @@
+{
+  "checkpoint": "siamese/runs/small_debug_20260407-141711/checkpoints/best.pt",
+  "device": "mps",
+  "locked_threshold": 0.5634091193589351,
+  "metrics": {
+    "auc": 0.9587442129629629,
+    "eer": 0.11180555555555555,
+    "eer_threshold": 0.5628600379354075,
+    "far_at_eer": 0.1125,
+    "far_at_locked_threshold": 0.1125,
+    "frr_at_eer": 0.1111111111111111,
+    "frr_at_locked_threshold": 0.1111111111111111,
+    "n_pairs": 600
+  },
+  "pair_counts": {
+    "positive": 360,
+    "random_impostor": 80,
+    "skilled": 160
+  },
+  "run_profile": "small",
+  "split": "val"
+}

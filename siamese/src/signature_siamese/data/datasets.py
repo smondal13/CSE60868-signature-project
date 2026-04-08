@@ -66,6 +66,7 @@ class SignatureDataset(Dataset[dict[str, Any]]):
         image_height: int = 155,
         image_width: int = 220,
         data_root: Path | None = None,
+        image_transform: Any | None = None,
     ) -> None:
         if split not in {"train", "val", "test"}:
             raise ValueError(f"Unknown split '{split}'. Expected train/val/test.")
@@ -73,6 +74,7 @@ class SignatureDataset(Dataset[dict[str, Any]]):
         self.manifest_csv = manifest_csv
         self.split = split
         self.data_root = data_root
+        self.image_transform = image_transform
         self.preprocessor = SignaturePreprocessor(
             image_height=image_height,
             image_width=image_width,
@@ -114,7 +116,10 @@ class SignatureDataset(Dataset[dict[str, Any]]):
             sample.image_path,
             data_root=self.data_root,
         )
-        image = self.preprocessor(image_path)
+        image_pil = self.preprocessor.load_image(image_path)
+        if self.image_transform is not None:
+            image_pil = self.image_transform(image_pil)
+        image = self.preprocessor.to_tensor(image_pil)
 
         return {
             "image": image,

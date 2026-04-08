@@ -14,5 +14,9 @@ conda activate machine-learning
 
 cd /users/smondal/signature-project/repo
 export SIGNATURE_DATA_ROOT=/users/smondal/signature-project/data/cedar-bhsig260
+export SIGNATURE_RUN_PROFILE="${SIGNATURE_RUN_PROFILE:-full}"
+export SIGNATURE_TRAIN_AUG_PROFILE="${SIGNATURE_TRAIN_AUG_PROFILE:-mild_v1}"
+export SIGNATURE_RUN_NAME_SUFFIX="${SIGNATURE_RUN_NAME_SUFFIX:-augmild}"
+export SIGNATURE_EARLY_STOP_PATIENCE="${SIGNATURE_EARLY_STOP_PATIENCE:-6}"
 
 python -m signature_siamese.train

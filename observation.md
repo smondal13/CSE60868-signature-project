@@ -35,49 +35,67 @@ query-side perturbations. The reference image in each verification pair was kept
 clean, while the query image was modified. This isolates how sensitive the model
 is to scan or appearance changes at test time.
 
-## 3. Small Held-Out Test Robustness Experiment
+## 3. Full Validation Robustness Experiment
 
 ### Baseline
 
-- AUC: `0.9370`
-- EER: `0.1479`
+- Split: `validation`
+- Number of pairs: `62,116`
+- AUC: `0.9785`
+- EER: `0.0756`
+- FAR at locked threshold: `0.0762`
+- FRR at locked threshold: `0.0747`
 
 ### Perturbation results
 
 | Condition | AUC | EER | Change in EER |
 |---|---:|---:|---:|
-| Baseline | 0.9370 | 0.1479 | +0.0000 |
-| Rotate `+3°` | 0.9220 | 0.1701 | +0.0222 |
-| Rotate `-3°` | 0.9169 | 0.1729 | +0.0250 |
-| Resolution `50%` | 0.6157 | 0.4514 | +0.3035 |
-| Thickness `+1` pixel | 0.7698 | 0.2694 | +0.1215 |
-| Thickness `-1` pixel | 0.4883 | 0.5167 | +0.3688 |
+| Baseline | 0.9785 | 0.0756 | +0.0000 |
+| Rotate `+3°` | 0.9553 | 0.1150 | +0.0394 |
+| Rotate `-3°` | 0.9552 | 0.1173 | +0.0416 |
+| Resolution `50%` | 0.6604 | 0.3786 | +0.3030 |
+| Thickness `+1` pixel | 0.6536 | 0.3845 | +0.3089 |
+| Thickness `-1` pixel | 0.4828 | 0.5120 | +0.4364 |
 
 ## 4. Interpretation Of The Robustness Result
 
-The robustness experiment suggests three things.
+The full validation robustness experiment suggests three things.
 
 ### 1. Small angle changes are not the main weakness
 
-Rotations of `±3°` increase EER by only about `0.02` to `0.03`. This means the
-model is somewhat tolerant to mild slant or scan angle changes.
+Rotations of `±3°` increase EER by about `0.04`. This is a real drop, but it is
+still much smaller than the degradation caused by the appearance-based
+perturbations. This means the model has some tolerance to mild slant or scan
+angle changes.
 
 ### 2. Resolution is a major sensitivity
 
 When the query image is downsampled to `50%` and resized back, EER rises from
-`0.1479` to `0.4514`. That is a very large degradation. This suggests the model
-depends strongly on fine local stroke detail.
+`0.0756` to `0.3786`. That is a very large degradation. This suggests the model
+depends strongly on fine local stroke detail and is not yet robust to lower scan
+quality.
 
 ### 3. Stroke-width changes are also a major sensitivity
 
 Both thickening and thinning hurt performance, but thinning is especially
 damaging:
 
-- Thickness `+1`: EER rises to `0.2694`
-- Thickness `-1`: EER rises to `0.5167`
+- Thickness `+1`: EER rises to `0.3845`
+- Thickness `-1`: EER rises to `0.5120`
 
 This suggests the current representation is not yet robust to changes in pen
 pressure, scan quality, or preprocessing effects that alter stroke appearance.
+
+An additional important detail is the behavior at the locked validation
+threshold. Under the strong perturbations, FAR stays similar or even drops
+slightly, but FRR becomes extremely large:
+
+- Resolution `50%`: FRR rises to `0.8446`
+- Thickness `+1`: FRR rises to `0.7993`
+- Thickness `-1`: FRR rises to `0.9486`
+
+This means the model becomes overly strict under these perturbations and rejects
+many genuine signatures that have been visually altered.
 
 ## 5. Overall Conclusion
 
@@ -95,10 +113,18 @@ In other words:
 
 ## 6. Most Important Next Result To Produce
 
-The next key experiment is to repeat the same robustness evaluation on the full
-held-out test setup using the full CRC-trained checkpoint. That will tell us
-whether the same pattern holds at the report-quality scale:
+The next key experiment is to retrain the model with mild targeted
+augmentation and compare against this full validation robustness baseline.
 
-- mild robustness to small rotation
-- strong sensitivity to reduced resolution
-- strong sensitivity to stroke-thickness change
+The first retraining recipe should be conservative:
+
+- mild rotation augmentation
+- mild resolution jitter, not as strong as `50%`
+- mild stroke-width jitter
+
+The goal is not simply to improve clean validation EER, but to reduce the large
+robustness gaps observed here, especially for:
+
+- reduced resolution
+- thicker strokes
+- thinner strokes
