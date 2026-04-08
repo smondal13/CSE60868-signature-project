@@ -1,0 +1,39 @@
+#!/bin/bash
+#$ -q gpu
+#$ -l gpu_card=1
+#$ -l h_rt=24:00:00
+#$ -pe smp 4
+#$ -N sig_hpo
+#$ -t 1-6
+#$ -o /users/smondal/signature-project/logs/sig_hpo.$JOB_ID.$TASK_ID.out
+#$ -e /users/smondal/signature-project/logs/sig_hpo.$JOB_ID.$TASK_ID.err
+
+source ~/.bashrc
+conda activate machine-learning
+
+cd /users/smondal/signature-project/repo
+
+LRS=("5e-4" "5e-4" "1e-3" "1e-3" "2e-3" "2e-3")
+MARGINS=("0.75" "1.25" "0.75" "1.25" "0.75" "1.25")
+RUN_SUFFIXES=(
+  "hpo_lr5e4_m075"
+  "hpo_lr5e4_m125"
+  "hpo_lr1e3_m075"
+  "hpo_lr1e3_m125"
+  "hpo_lr2e3_m075"
+  "hpo_lr2e3_m125"
+)
+
+task_index=$((SGE_TASK_ID - 1))
+
+export SIGNATURE_DATA_ROOT=/users/smondal/signature-project/data/cedar-bhsig260
+export SIGNATURE_RUN_PROFILE=full
+export SIGNATURE_TRAIN_AUG_PROFILE=mild_v1
+export SIGNATURE_EARLY_STOP_PATIENCE=6
+export SIGNATURE_LR="${LRS[$task_index]}"
+export SIGNATURE_MARGIN="${MARGINS[$task_index]}"
+export SIGNATURE_RUN_NAME_SUFFIX="${RUN_SUFFIXES[$task_index]}"
+
+echo "Task $SGE_TASK_ID | lr=$SIGNATURE_LR | margin=$SIGNATURE_MARGIN | run=$SIGNATURE_RUN_NAME_SUFFIX"
+
+python -m signature_siamese.train

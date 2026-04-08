@@ -35,7 +35,7 @@ query-side perturbations. The reference image in each verification pair was kept
 clean, while the query image was modified. This isolates how sensitive the model
 is to scan or appearance changes at test time.
 
-## 3. Full Validation Robustness Experiment
+## 3. Full Validation Robustness Baseline
 
 ### Baseline
 
@@ -111,20 +111,141 @@ In other words:
 - the baseline verification result is promising
 - the main weakness is robustness to realistic appearance shifts
 
-## 6. Most Important Next Result To Produce
+## 6. Augmented Retraining Result
 
-The next key experiment is to retrain the model with mild targeted
-augmentation and compare against this full validation robustness baseline.
+After observing the robustness weakness above, I retrained the model with a
+conservative augmentation profile (`mild_v1`).
 
-The first retraining recipe should be conservative:
+### Mild augmentation profile used during training
 
-- mild rotation augmentation
-- mild resolution jitter, not as strong as `50%`
-- mild stroke-width jitter
+Each training image is augmented independently with probability `0.6`, so `40%`
+of images are left unchanged.
 
-The goal is not simply to improve clean validation EER, but to reduce the large
-robustness gaps observed here, especially for:
+Among the augmented images:
 
-- reduced resolution
-- thicker strokes
-- thinner strokes
+- `45%` receive a small random rotation in `[-3°, 3°]`
+- `35%` receive mild resolution jitter, with scale sampled from `[0.75, 1.0]`
+- `20%` receive stroke-thickness jitter
+
+So the effective per-image probabilities are:
+
+- No augmentation: `40%`
+- Rotation: `27%`
+- Resolution jitter: `21%`
+- Thickness jitter: `12%`
+
+For the thickness jitter branch, the code chooses `+1` and `-1` with equal
+probability, so the effective probabilities are:
+
+- Thickness `+1`: `6%`
+- Thickness `-1`: `6%`
+
+### Clean validation result after augmentation
+
+- Best validation EER: `0.0739`
+- Best validation threshold: `0.7795`
+- Last validation AUC: `0.9719`
+- Last validation EER: `0.0862`
+
+### Comparison to the earlier non-augmented full run
+
+- Best validation EER improved from `0.0755` to `0.0739`
+- Last validation EER improved from `0.1011` to `0.0862`
+- Last validation AUC improved from `0.9640` to `0.9719`
+
+This suggests that the mild augmentation did not hurt clean validation
+performance. Instead, it appears to have slightly improved both the best
+checkpoint and the stability of later epochs.
+
+## 7. Current Interpretation
+
+The current evidence now suggests:
+
+- the base Siamese model works
+- the original full validation robustness run exposed a real generalization
+  weakness
+- the first augmented retraining run improved clean validation performance
+
+This is encouraging, but it does **not** yet prove that robustness improved,
+because the validation numbers above are still from clean validation data.
+
+## 8. Robustness Result After Augmented Retraining
+
+I then ran the same full validation robustness sweep on the augmented
+checkpoint. This is the most important comparison, because it tests whether the
+augmentation actually improved the failure modes that appeared in the baseline
+robustness experiment.
+
+### Full validation robustness after augmentation
+
+| Condition | AUC | EER | Change in EER from clean baseline |
+|---|---:|---:|---:|
+| Baseline | 0.9754 | 0.0739 | +0.0000 |
+| Rotate `+3°` | 0.9756 | 0.0744 | +0.0005 |
+| Rotate `-3°` | 0.9715 | 0.0819 | +0.0080 |
+| Resolution `50%` | 0.9415 | 0.1291 | +0.0552 |
+| Thickness `+1` pixel | 0.9324 | 0.1390 | +0.0651 |
+| Thickness `-1` pixel | 0.8918 | 0.1840 | +0.1102 |
+
+### Comparison against the earlier robustness baseline
+
+| Condition | Old EER | New EER | Improvement |
+|---|---:|---:|---:|
+| Baseline | 0.0756 | 0.0739 | -0.0017 |
+| Rotate `+3°` | 0.1150 | 0.0744 | -0.0406 |
+| Rotate `-3°` | 0.1173 | 0.0819 | -0.0354 |
+| Resolution `50%` | 0.3786 | 0.1291 | -0.2495 |
+| Thickness `+1` pixel | 0.3845 | 0.1390 | -0.2455 |
+| Thickness `-1` pixel | 0.5120 | 0.1840 | -0.3280 |
+
+### Interpretation
+
+This is a strong result.
+
+- Clean validation did not get worse; it improved slightly.
+- Rotation robustness improved substantially, especially for `+3°`.
+- Resolution robustness improved dramatically.
+- Stroke-thickness robustness improved dramatically.
+- Thinning remained the hardest perturbation, but it is far better than before.
+
+The most important change is not only the reduction in EER, but also the large
+drop in false rejection under the locked threshold. In the earlier baseline, the
+model became overly strict under strong perturbations and rejected many genuine
+signatures. After augmentation, this behavior is much more controlled.
+
+For example:
+
+- Resolution `50%`: FRR dropped from `0.8446` to `0.1381`
+- Thickness `+1`: FRR dropped from `0.7993` to `0.1821`
+- Thickness `-1`: FRR dropped from `0.9486` to `0.2669`
+
+The FAR at the locked threshold increased somewhat under the strong
+perturbations, but the overall trade-off is much better balanced than before,
+and the EER improvement is large.
+
+## 9. Updated Conclusion
+
+The evidence now supports a stronger conclusion than before:
+
+> Mild targeted augmentation substantially improves generalization to realistic
+> signature appearance shifts without harming clean validation performance.
+
+At this point, the augmentation is not just a reasonable idea; it has empirical
+support on the full validation split.
+
+## 10. Most Important Next Result To Produce
+
+The next most useful step is a small, focused hyperparameter search while
+keeping the `mild_v1` augmentation profile fixed.
+
+The goal now is not to rediscover augmentation, but to refine the model around a
+training recipe that already works well.
+
+The first search should stay small and practical, for example:
+
+- learning rate
+- contrastive margin
+- early stopping patience
+
+I would keep the search modest and continue selecting models based on validation
+performance together with robustness behavior, not clean validation EER alone.
