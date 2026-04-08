@@ -26,6 +26,7 @@ RUN_SUFFIXES=(
 
 task_index=$((SGE_TASK_ID - 1))
 
+export OMP_NUM_THREADS="${NSLOTS}"
 export SIGNATURE_DATA_ROOT=/users/smondal/signature-project/data/cedar-bhsig260
 export SIGNATURE_RUN_PROFILE=full
 export SIGNATURE_TRAIN_AUG_PROFILE=mild_v1
