@@ -233,19 +233,189 @@ The evidence now supports a stronger conclusion than before:
 At this point, the augmentation is not just a reasonable idea; it has empirical
 support on the full validation split.
 
-## 10. Most Important Next Result To Produce
+## 10. Focused HPO Result
 
-The next most useful step is a small, focused hyperparameter search while
-keeping the `mild_v1` augmentation profile fixed.
-
-The goal now is not to rediscover augmentation, but to refine the model around a
-training recipe that already works well.
-
-The first search should stay small and practical, for example:
+I ran a small hyperparameter sweep while keeping the `mild_v1` augmentation
+profile fixed. The sweep varied:
 
 - learning rate
-- contrastive margin
-- early stopping patience
+- contrastive-loss margin
 
-I would keep the search modest and continue selecting models based on validation
-performance together with robustness behavior, not clean validation EER alone.
+### Best HPO result
+
+The current best HPO configuration is:
+
+- Learning rate: `5e-4`
+- Margin: `0.75`
+- Best validation EER: `0.0707`
+- Last validation AUC: `0.9780`
+- Last validation EER: `0.0765`
+
+Compared with the earlier augmented default run:
+
+- Augmented default best validation EER: `0.0739`
+- Best HPO validation EER: `0.0707`
+
+So the focused HPO produced an additional improvement of about `0.0033` in
+validation EER.
+
+### Main HPO pattern
+
+The sweep suggests two clear trends:
+
+- `margin = 0.75` performed better than `margin = 1.25`
+- the best learning rate among the tested values was `5e-4`
+
+So far, the strongest candidate training recipe is:
+
+- `mild_v1` augmentation
+- `lr = 5e-4`
+- `margin = 0.75`
+
+## 11. Robustness Of The Best HPO Checkpoint
+
+I then evaluated the best HPO checkpoint under the same full validation
+robustness sweep.
+
+### Full validation robustness of the best HPO checkpoint
+
+| Condition | AUC | EER | Change in EER from clean baseline |
+|---|---:|---:|---:|
+| Baseline | 0.9800 | 0.0706 | +0.0000 |
+| Rotate `+3°` | 0.9793 | 0.0724 | +0.0017 |
+| Rotate `-3°` | 0.9763 | 0.0786 | +0.0080 |
+| Resolution `50%` | 0.9446 | 0.1259 | +0.0553 |
+| Thickness `+1` pixel | 0.9689 | 0.0914 | +0.0207 |
+| Thickness `-1` pixel | 0.9004 | 0.1781 | +0.1074 |
+
+### Comparison to the earlier augmented checkpoint
+
+The earlier augmented checkpoint had:
+
+- Clean validation EER: `0.0739`
+- `rotate +3°` EER: `0.0744`
+- `rotate -3°` EER: `0.0819`
+- `resolution_50` EER: `0.1291`
+- `thickness +1` EER: `0.1390`
+- `thickness -1` EER: `0.1840`
+
+The new HPO checkpoint improves on that result across all six conditions:
+
+- Clean baseline: `0.0739 -> 0.0706`
+- `rotate +3°`: `0.0744 -> 0.0724`
+- `rotate -3°`: `0.0819 -> 0.0786`
+- `resolution_50`: `0.1291 -> 0.1259`
+- `thickness +1`: `0.1390 -> 0.0914`
+- `thickness -1`: `0.1840 -> 0.1781`
+
+The largest additional gain comes from the `thickness +1` case, where EER drops
+by about `0.0476` relative to the previous augmented model.
+
+### Interpretation
+
+This means the best HPO checkpoint is not only better on clean validation, but
+also better on the robustness sweep. So the current leading recipe is now:
+
+- `mild_v1` augmentation
+- `lr = 5e-4`
+- `margin = 0.75`
+
+At this point, this is the strongest overall validation-time model in the
+project.
+
+## 12. Which Metric Should Be The Main Focus
+
+For this project stage, the main metric should be:
+
+- **Validation EER**
+
+This is the best single metric for model selection because it summarizes the
+trade-off between false accepts and false rejects without depending on one
+specific threshold.
+
+The most useful secondary metrics are:
+
+- **Robustness EER under perturbations**
+- **AUC**
+- **FAR/FRR at the locked validation threshold**
+
+The practical priority should be:
+
+1. Use **validation EER** as the primary scalar for picking checkpoints and HPO
+   candidates.
+2. Use **robustness EER** to check whether a candidate is still reliable under
+   realistic image shifts.
+3. Use **AUC** as supporting evidence for global pair separation quality.
+4. Use **locked-threshold FAR/FRR** to understand the operating-point trade-off,
+   especially when perturbations cause false rejections to spike.
+
+So the short version is:
+
+- primary metric: **EER**
+- most important secondary analysis: **robustness EER**
+- supporting metric: **AUC**
+- operational interpretation: **FAR/FRR at locked threshold**
+
+## 13. What The Margin Means
+
+The Siamese model is trained with contrastive loss. In the current code, the
+loss is:
+
+\[
+\mathcal{L} = y \, d^2 + (1-y)\max(0, m-d)^2
+\]
+
+where:
+
+- \(y=1\) for a positive pair
+- \(y=0\) for a negative pair
+- \(d\) is the Euclidean distance between the two embeddings
+- \(m\) is the **margin**
+
+Interpretation:
+
+- For positive pairs, the model is encouraged to make the distance small.
+- For negative pairs, the model is only penalized if their distance is **less
+  than the margin**.
+
+So the margin defines how far apart negative pairs are expected to be before the
+loss is satisfied.
+
+If the margin is too large:
+
+- the model may over-push negative pairs apart
+- optimization can become harsher than necessary
+- generalization may get worse
+
+If the margin is too small:
+
+- negative pairs may not be separated enough
+- the embeddings may not become discriminative enough
+
+The HPO result suggests that, for this project, `margin = 0.75` is better than
+`margin = 1.25`, which likely means the larger margin was too aggressive for the
+current embedding space and data distribution.
+
+## 14. Most Important Next Result To Produce
+
+The best next step depends on whether we want one more validation-stage
+refinement or whether we want to freeze the validation choice.
+
+If we want to keep improving on validation, the next most useful step is a small
+follow-up sweep around the new best point:
+
+- learning rate near `5e-4`
+- margin near `0.75`
+
+For example:
+
+- `lr ∈ {3e-4, 5e-4, 7e-4}`
+- `margin ∈ {0.6, 0.75, 0.9}`
+
+If we instead want to lock the model choice, then the current best candidate is:
+
+- `mild_v1` augmentation
+- `lr = 5e-4`
+- `margin = 0.75`
+
+and that is the configuration to carry forward into the next stage.
