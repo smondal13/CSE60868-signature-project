@@ -34,6 +34,13 @@ class PairEvalResult:
     tpr_curve: np.ndarray
 
 
+@dataclass(frozen=True)
+class PairEvalInputs:
+    distances: np.ndarray
+    labels: np.ndarray
+    pair_types: np.ndarray | None
+
+
 def _to_numpy(parts: list[np.ndarray]) -> np.ndarray:
     if not parts:
         return np.array([], dtype=np.float64)
@@ -41,18 +48,17 @@ def _to_numpy(parts: list[np.ndarray]) -> np.ndarray:
 
 
 @torch.no_grad()
-def evaluate_pair_loader(
+def collect_pair_outputs(
     model: torch.nn.Module,
     pair_loader: DataLoader,
     device: torch.device,
-    threshold_points: int,
-    locked_threshold: float | None = None,
-) -> PairEvalResult:
-    """Run pairwise verification and compute FAR/FRR/ROC/EER statistics."""
+) -> PairEvalInputs:
+    """Run pairwise verification and return distances/labels for downstream metrics."""
     model.eval()
 
     distance_parts: list[np.ndarray] = []
     label_parts: list[np.ndarray] = []
+    pair_type_parts: list[np.ndarray] = []
 
     for batch in pair_loader:
         image_a = batch["image_a"].to(device)
@@ -64,16 +70,40 @@ def evaluate_pair_loader(
 
         distance_parts.append(distances.detach().cpu().numpy())
         label_parts.append(batch["label"].detach().cpu().numpy())
+        pair_types = batch.get("pair_type")
+        if pair_types is not None:
+            pair_type_parts.append(np.asarray(pair_types, dtype=object))
 
     all_distances = _to_numpy(distance_parts)
     all_labels = _to_numpy(label_parts).astype(np.int32)
     if all_distances.size == 0:
         raise RuntimeError("Pair loader produced no evaluation samples.")
 
-    thresholds = build_thresholds(all_distances, points=threshold_points)
-    threshold_metrics = compute_threshold_metrics(
+    all_pair_types: np.ndarray | None = None
+    if pair_type_parts:
+        all_pair_types = _to_numpy(pair_type_parts).astype(object)
+
+    return PairEvalInputs(
         distances=all_distances,
         labels=all_labels,
+        pair_types=all_pair_types,
+    )
+
+
+def evaluate_pair_arrays(
+    distances: np.ndarray,
+    labels: np.ndarray,
+    threshold_points: int,
+    locked_threshold: float | None = None,
+) -> PairEvalResult:
+    """Compute FAR/FRR/ROC/EER statistics from precomputed pair distances."""
+    if distances.size == 0:
+        raise RuntimeError("No pair distances supplied for evaluation.")
+
+    thresholds = build_thresholds(distances, points=threshold_points)
+    threshold_metrics = compute_threshold_metrics(
+        distances=distances,
+        labels=labels,
         thresholds=thresholds,
     )
     eer = compute_eer(threshold_metrics)
@@ -83,15 +113,15 @@ def evaluate_pair_loader(
     frr_locked: float | None = None
     if locked_threshold is not None:
         single_metrics = compute_threshold_metrics(
-            distances=all_distances,
-            labels=all_labels,
+            distances=distances,
+            labels=labels,
             thresholds=np.array([locked_threshold], dtype=np.float64),
         )
         far_locked = float(single_metrics.far[0])
         frr_locked = float(single_metrics.frr[0])
 
     return PairEvalResult(
-        n_pairs=int(all_distances.size),
+        n_pairs=int(distances.size),
         auc=float(auc),
         eer=float(eer.eer),
         eer_threshold=float(eer.threshold),
@@ -104,6 +134,24 @@ def evaluate_pair_loader(
         frr_curve=threshold_metrics.frr,
         fpr_curve=threshold_metrics.fpr,
         tpr_curve=threshold_metrics.tpr,
+    )
+
+
+@torch.no_grad()
+def evaluate_pair_loader(
+    model: torch.nn.Module,
+    pair_loader: DataLoader,
+    device: torch.device,
+    threshold_points: int,
+    locked_threshold: float | None = None,
+) -> PairEvalResult:
+    """Run pairwise verification and compute FAR/FRR/ROC/EER statistics."""
+    outputs = collect_pair_outputs(model=model, pair_loader=pair_loader, device=device)
+    return evaluate_pair_arrays(
+        distances=outputs.distances,
+        labels=outputs.labels,
+        threshold_points=threshold_points,
+        locked_threshold=locked_threshold,
     )
 
 

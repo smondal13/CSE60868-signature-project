@@ -398,24 +398,96 @@ current embedding space and data distribution.
 
 ## 14. Most Important Next Result To Produce
 
-The best next step depends on whether we want one more validation-stage
-refinement or whether we want to freeze the validation choice.
+At this point, the most important next result is no longer another in-dataset
+validation refinement. The current model choice is already strong on clean
+validation and on the robustness sweep.
 
-If we want to keep improving on validation, the next most useful step is a small
-follow-up sweep around the new best point:
+So the most useful next result is:
 
-- learning rate near `5e-4`
-- margin near `0.75`
+- **external zero-shot generalization on CEDAR**
 
-For example:
-
-- `lr ∈ {3e-4, 5e-4, 7e-4}`
-- `margin ∈ {0.6, 0.75, 0.9}`
-
-If we instead want to lock the model choice, then the current best candidate is:
+The current best candidate to carry into that evaluation is:
 
 - `mild_v1` augmentation
 - `lr = 5e-4`
 - `margin = 0.75`
 
-and that is the configuration to carry forward into the next stage.
+This gives us a clean answer to a more important question:
+
+> Does the best Bengali/Hindi-trained model learn transferable signature
+> features, or is it still too tied to BHSig-specific characteristics?
+
+## 15. Full CEDAR Mode A Result
+
+I then ran the full CEDAR zero-shot experiment in **Mode A**:
+
+- keep the BHSig-trained model fixed
+- keep the BHSig validation threshold fixed
+- apply the model directly to CEDAR without recalibration
+
+### Full zero-shot metrics on CEDAR
+
+- Number of pairs: `57,836`
+- Positive pairs: `15,180`
+- Skilled-forgery pairs: `31,680`
+- Random-impostor pairs: `10,976`
+- AUC: `0.9680`
+- EER: `0.0950`
+- Transferred BHSig threshold: `0.5195`
+- CEDAR EER threshold: `0.0727`
+- FAR at transferred threshold: `0.5719`
+- FRR at transferred threshold: `0.0000`
+
+### Pair-type behavior at the transferred threshold
+
+- Positive FRR: `0.0000`
+- Skilled-forgery FAR: `0.4236`
+- Random-impostor FAR: `1.0000`
+
+### Interpretation
+
+This full CEDAR result gives a clearer version of the same story that appeared
+in the earlier smoke test.
+
+#### 1. The representation transfers reasonably well
+
+The zero-shot AUC is high (`0.9680`), and the zero-shot EER (`0.0950`) is worse
+than the BHSig validation EER but still strong for a fully external dataset.
+This suggests that the embedding space is learning meaningful signature
+structure that transfers beyond Bengali and Hindi BHSig writers.
+
+#### 2. The locked threshold does **not** transfer well
+
+The transferred BHSig threshold is `0.5195`, while the CEDAR EER threshold is
+only `0.0727`.
+
+That is a large mismatch. As a result:
+
+- the model rejects essentially no genuine pairs at the transferred threshold
+- but it accepts far too many negative pairs
+
+This is most visible in the pair-type breakdown:
+
+- random-impostor FAR is `1.0000`
+- skilled-forgery FAR is `0.4236`
+
+So the main weakness in Mode A is not that the model collapses on CEDAR.
+Instead, it is that the **score calibration is strongly dataset-dependent**.
+
+### Current conclusion from full CEDAR Mode A
+
+The full external evaluation suggests:
+
+- the learned representation transfers better than the threshold
+- pure zero-shot threshold transfer from BHSig to CEDAR is poor
+- the model appears to learn useful cross-dataset signature features, but the
+  operating threshold should not be assumed to transfer unchanged
+
+This makes the natural next step **Mode B**:
+
+- keep the model frozen
+- calibrate the threshold on a small CEDAR validation subset
+- test on disjoint CEDAR writers
+
+If Mode B performs much better while the model stays fixed, then the main issue
+is calibration rather than representation learning.

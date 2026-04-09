@@ -13,10 +13,13 @@ from __future__ import annotations
 import csv
 from collections import Counter
 from pathlib import Path
-
-import torch
 from torch.utils.data import DataLoader
 
+from .checkpoints import (
+    infer_embedding_dim,
+    load_checkpoint,
+    resolve_checkpoint_path,
+)
 from .data.datasets import SignatureDataset
 from .data.pairs import (
     VerificationPairDataset,
@@ -78,22 +81,6 @@ SEED = 42
 # -----------------------------------------------------------------------------
 
 
-def _load_checkpoint(path: Path, map_location: str = "cpu") -> dict[str, object]:
-    # weights_only=False is required because checkpoints include metadata dicts.
-    payload = torch.load(path, map_location=map_location, weights_only=False)
-    if not isinstance(payload, dict):
-        raise RuntimeError(f"Unexpected checkpoint format at {path}.")
-    return payload
-
-
-def _infer_embedding_dim(checkpoint: dict[str, object], fallback: int) -> int:
-    # Prefer checkpoint metadata to avoid mismatch between train/eval dimensions.
-    config = checkpoint.get("config", {})
-    if isinstance(config, dict) and "embedding_dim" in config:
-        return int(config["embedding_dim"])
-    return fallback
-
-
 def _save_roc_csv(path: Path, curve_payload: dict[str, list[float]]) -> None:
     # Save dense threshold sweep for downstream plotting/reporting.
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -110,46 +97,15 @@ def _save_roc_csv(path: Path, curve_payload: dict[str, list[float]]) -> None:
             writer.writerow(row)
 
 
-def _resolve_latest_checkpoint_by_prefix(
-    prefix: str, runs_root: Path = Path("siamese/runs")
-) -> Path:
-    # Find most recent run folder matching the configured name prefix.
-    candidates = sorted(
-        [
-            path
-            for path in runs_root.iterdir()
-            if path.is_dir() and path.name.startswith(f"{prefix}_")
-        ],
-        key=lambda path: path.name,
-    )
-    if not candidates:
-        raise FileNotFoundError(
-            f"No run directories found under {runs_root} with prefix '{prefix}_'."
-        )
-
-    latest = candidates[-1]
-    checkpoint = latest / "checkpoints" / "best.pt"
-    if not checkpoint.exists():
-        raise FileNotFoundError(f"Missing checkpoint at expected path: {checkpoint}")
-    return checkpoint
-
-
-def _resolve_checkpoint_path() -> Path:
-    # Use explicit checkpoint when set; otherwise infer from latest run folder.
-    if CHECKPOINT_PATH is not None:
-        return CHECKPOINT_PATH
-    return _resolve_latest_checkpoint_by_prefix(RUN_NAME_PREFIX)
-
-
 def main() -> None:
     # Resolve compute device for evaluation workload.
     preferred_device = None if DEVICE == "auto" else DEVICE
     device = resolve_device(preferred=preferred_device)
 
     # Load trained model state.
-    checkpoint_path = _resolve_checkpoint_path()
-    checkpoint = _load_checkpoint(checkpoint_path)
-    embedding_dim = _infer_embedding_dim(checkpoint, fallback=EMBEDDING_DIM)
+    checkpoint_path = resolve_checkpoint_path(CHECKPOINT_PATH, RUN_NAME_PREFIX)
+    checkpoint = load_checkpoint(checkpoint_path)
+    embedding_dim = infer_embedding_dim(checkpoint, fallback=EMBEDDING_DIM)
 
     model = SiameseNetwork(embedding_dim=embedding_dim)
     model.load_state_dict(checkpoint["model_state"])
