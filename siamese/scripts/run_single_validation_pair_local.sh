@@ -8,15 +8,20 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 CONDA_PROFILE="${HOME}/miniconda3/etc/profile.d/conda.sh"
-if [[ ! -f "${CONDA_PROFILE}" ]]; then
-    echo "Could not find conda profile at ${CONDA_PROFILE}."
-    echo "Set CONDA_PROFILE manually or activate your environment before running."
+TARGET_CONDA_ENV="${CONDA_ENV_NAME:-machine-learning}"
+
+if [[ -n "${CONDA_DEFAULT_ENV:-}" ]]; then
+    # Reuse an already-active environment to avoid forcing a specific local setup.
+    echo "Using already active conda environment: ${CONDA_DEFAULT_ENV}"
+elif [[ -f "${CONDA_PROFILE}" ]]; then
+    # Source conda in the current shell so activation works in a non-interactive script.
+    source "${CONDA_PROFILE}"
+    conda activate "${TARGET_CONDA_ENV}"
+else
+    echo "No active conda environment detected and could not find conda profile at ${CONDA_PROFILE}."
+    echo "Activate an environment manually or set CONDA_PROFILE and rerun."
     exit 1
 fi
-
-# Source conda in the current shell so activation works in a non-interactive script.
-source "${CONDA_PROFILE}"
-conda activate "${CONDA_ENV_NAME:-machine-learning}"
 
 cd "${REPO_ROOT}"
 
