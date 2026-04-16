@@ -220,6 +220,7 @@ From a fresh clone of the repository, run:
 
 ```bash
 conda env create -f environment.yml
+# if you have already have an environment with the dependencies, the line above is unnecessary
 conda activate <environment-name>
 bash ./siamese/scripts/run_single_validation_pair_local.sh
 ```
