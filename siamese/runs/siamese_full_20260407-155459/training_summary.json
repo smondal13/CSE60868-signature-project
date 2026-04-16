@@ -1,0 +1,19 @@
+{
+  "best_threshold": 0.7842264901426501,
+  "best_val_eer": 0.07546119078408269,
+  "device": "cuda",
+  "last_val": {
+    "auc": 0.963958929649418,
+    "eer": 0.10112150720231028,
+    "eer_threshold": 0.8131900915227139,
+    "far_at_eer": 0.10051503224185579,
+    "far_at_locked_threshold": 0.08240515869692655,
+    "frr_at_eer": 0.10172798216276477,
+    "frr_at_locked_threshold": 0.1261148272017837,
+    "n_pairs": 62116
+  },
+  "profile": "full",
+  "run_dir": "siamese/runs/siamese_full_20260407-155459",
+  "train_samples": 8424,
+  "val_pairs": 62116
+}

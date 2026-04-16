@@ -14,6 +14,10 @@ IMAGE_EXTENSIONS = {".tif", ".tiff", ".png", ".jpg", ".jpeg", ".bmp"}
 # Expected BHSig naming pattern:
 #   <script>-S-<writer_id>-<F|G>-<sample_id>.<ext>
 FILENAME_RE = re.compile(r"^[A-Za-z]-S-(\d+)-([FG])-(\d+)\.[A-Za-z0-9]+$")
+CEDAR_FILENAME_RE = re.compile(
+    r"^(original|forgeries)_(\d+)_(\d+)\.[A-Za-z0-9]+$",
+    re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True)
@@ -103,6 +107,61 @@ def scan_bhsig_root(
 
     if not records:
         raise RuntimeError(f"No signature records parsed under: {root_dir}")
+    return records
+
+
+def scan_cedar_root(
+    root_dir: Path,
+    path_root: Path | None = None,
+) -> list[SignatureRecord]:
+    """Scan the CEDAR directory tree and return normalized signature records."""
+    script = _normalize_script_label("cedar")
+    records: list[SignatureRecord] = []
+
+    if not root_dir.exists():
+        raise FileNotFoundError(f"Dataset root does not exist: {root_dir}")
+
+    writer_dirs = _iter_writer_dirs(root_dir)
+    if not writer_dirs:
+        raise RuntimeError(
+            f"No numeric writer directories found in {root_dir}. "
+            "Expected one directory per writer id."
+        )
+
+    for writer_dir in writer_dirs:
+        writer_id = int(writer_dir.name)
+        writer_key = f"{script}_{writer_id:03d}"
+
+        for image_path in _iter_image_files(writer_dir):
+            match = CEDAR_FILENAME_RE.match(image_path.name)
+            if not match:
+                # Ignore files that do not follow the expected CEDAR naming.
+                continue
+
+            type_token, file_writer_token, sample_token = match.groups()
+            file_writer_id = int(file_writer_token)
+            if file_writer_id != writer_id:
+                raise RuntimeError(
+                    f"CEDAR file {image_path.name} is under writer {writer_id}, "
+                    f"but encodes writer {file_writer_id}."
+                )
+
+            records.append(
+                SignatureRecord(
+                    script=script,
+                    writer_id=writer_id,
+                    writer_key=writer_key,
+                    image_path=to_manifest_path(image_path, path_root)
+                    if path_root is not None
+                    else str(image_path.resolve()),
+                    file_name=image_path.name,
+                    is_genuine=1 if type_token.lower() == "original" else 0,
+                    sample_index=int(sample_token),
+                )
+            )
+
+    if not records:
+        raise RuntimeError(f"No CEDAR signature records parsed under: {root_dir}")
     return records
 
 

@@ -190,3 +190,259 @@ A third challenge is deciding how much to improve this baseline before shifting 
 My immediate next steps are therefore focused on making the baseline more informative rather than simply making it larger. First, I want to inspect the training behavior more closely and test whether the network can learn on a smaller subset of writers. Second, I want to try mild augmentation and a few controlled preprocessing adjustments. Finally, I want to use what I learn from this baseline to better support the later comparison with the Siamese verification model.
 
 Overall, I believe this track has reached a useful interim point: the baseline system is implemented, the end-to-end workflow is working, and the current limitations are clear enough to discuss productively. The main value of this update is not a strong performance number, but a clearer understanding of what is working, what is difficult, and what support would be most useful before the next milestone.
+
+---
+
+## Part 4: Final Results and Discussion
+
+### Shuvashish Mondal — Final Siamese Verification Result
+
+The final system is a writer-independent offline signature verifier built using a Siamese neural network. Each signature image is mapped to an embedding, and the Euclidean distance between two embeddings is used as the verification score. A small distance suggests the pair is from the same writer, while a large distance suggests a non-match.
+
+This is a verification problem, not a standard multiclass classification problem. Because of that, plain classification accuracy is not the best primary metric. In biometric verification, the operating threshold is part of the system itself, so I mainly report:
+
+- **AUC**, to measure overall separation between genuine and non-genuine pairs
+- **EER**, to summarize the FAR/FRR trade-off
+- **FAR** and **FRR** at a fixed threshold
+
+Since the assignment also asks for an accuracy-style measure, I additionally report threshold-based pairwise accuracyon both the train and validation splits.
+
+#### How to run the trained network on a single validation sample
+
+For this Siamese verifier, a single inference example consists of a **pair of signature images**. I included one validation pair in the repository:
+
+- reference image: `./validation/B-S-83-G-04.tif`
+- query image: `./validation/B-S-83-F-05.tif`
+
+This pair contains a genuine signature and a skilled forgery from the same writer, so the expected output is `non-match`.
+
+From a fresh clone of the repository, run:
+
+```bash
+conda env create -f environment.yml
+conda activate <environment-name>
+bash ./siamese/scripts/run_single_validation_pair_local.sh
+```
+This command uses:
+
+- the final checkpoint selected from validation
+- the fixed validation pair above
+- the locked threshold stored in the checkpoint
+
+The script prints:
+
+- the checkpoint path
+- the two image paths
+- the Euclidean distance between embeddings
+- the decision threshold
+- the predicted label (`match` or `non-match`)
+- the expected label
+
+It also saves the output to:
+
+- [single_pair_result.json](./validation/results/single_pair_result.json)
+
+The underlying inference entry point is:
+
+- [infer_single_pair.py](./siamese/src/signature_siamese/infer_single_pair.py)
+
+#### Evaluation protocol
+
+The Bengali and Hindi portions of **BHSig-260** were split in a
+writer-independent way:
+
+- `60%` train
+- `20%` validation
+- `20%` test
+
+No writer appears in more than one split. This is important because the goal is
+to verify unseen writers, not to memorize known signatures.
+
+The final training recipe used:
+
+- a custom CNN Siamese backbone
+- contrastive loss
+- online hard-negative mining
+- mild train-time augmentation (`mild_v1`)
+- focused hyperparameter tuning over learning rate and margin
+
+The best final configuration was:
+
+- learning rate: `5e-4`
+- margin: `0.75`
+- augmentation: `mild_v1`
+
+#### Final validation performance on BHSig-260
+
+For the best validation checkpoint, using the locked threshold
+`\tau = 0.5195`, the fixed-split evaluation results were:
+
+- **Train accuracy:** `98.52%`
+- **Validation accuracy:** `92.95%`
+- **Train AUC:** `0.9990`
+- **Validation AUC:** `0.9800`
+- **Train EER:** `0.00847`
+- **Validation EER:** `0.07064`
+- **Train FAR at the locked threshold:** `0.0180`
+- **Validation FAR at the locked threshold:** `0.0704`
+- **Train FRR at the locked threshold:** `0.00430`
+- **Validation FRR at the locked threshold:** `0.0711`
+
+The fixed validation evaluation set contained:
+
+- positive pairs: `14,352`
+- skilled-forgery pairs: `37,440`
+- random-impostor pairs: `10,324`
+- total pairs: `62,116`
+
+The fixed train evaluation set contained `186,506` pairs in total:
+
+- positive pairs: `43,056`
+- skilled-forgery pairs: `112,320`
+- random-impostor pairs: `31,130`
+
+These train and validation numbers come from the same post-training fixed-split
+evaluator, so they are directly comparable. The train-validation gap is clear,
+but not extreme: the model fits the training data very well while still keeping
+strong validation performance on unseen writers.
+
+#### Why these metrics are appropriate
+
+Unlike multi-class classification, the Siamese network does not directly output
+a writer label. It outputs a distance score, and the final match/non-match
+decision depends on a threshold. Therefore:
+
+- **AUC** is useful because it measures how well the model separates positive
+  and negative pairs over all thresholds.
+- **EER** is useful because it gives a standard biometric summary at the point
+  where FAR and FRR are balanced.
+- **FAR/FRR** are important because in a verification system the operating point
+  matters. A model with a decent EER can still behave poorly if the threshold is
+  badly chosen.
+
+For this reason, I believe AUC, EER, FAR, and FRR are better suited to this
+problem than plain accuracy alone.
+
+#### Commentary on the observed validation performance
+
+The final validation result is strong enough to support the claim that the
+Siamese verification approach is working. An EER of about `7%` and an AUC near
+`0.98` show that the model learned a useful writer-independent representation on
+the BHSig validation split.
+
+At the same time, I do not interpret this as evidence that the problem is
+solved. A clean validation score can hide brittleness, so I also evaluated the
+model under controlled perturbations. These robustness experiments showed:
+
+- small rotations are not the main weakness
+- resolution loss hurts substantially more
+- stroke-thickness changes, especially thinning, remain difficult
+
+This means the model is learning meaningful signature features, but it is still
+somewhat dependent on image quality and stroke appearance.
+
+#### What improved generalization
+
+The most important improvement during the project was mild targeted
+augmentation. Earlier models were much more fragile under resolution and
+stroke-width shifts. After augmentation:
+
+- clean validation performance improved slightly
+- robustness improved dramatically
+
+For example, compared to the earlier robustness baseline, the best augmented and
+tuned model reduced validation EER under the strongest perturbations by large
+margins:
+
+- `resolution_50`: from `0.3786` to `0.1259`
+- `thickness +1`: from `0.3845` to `0.0914`
+- `thickness -1`: from `0.5120` to `0.1781`
+
+This is important because it suggests that the original model was overfitting to
+the exact appearance statistics of the training data, and that realistic
+augmentation materially improved generalization.
+
+#### External generalization on CEDAR
+
+I also evaluated the best BHSig-trained model on CEDAR to test cross-dataset transfer. In zero-shot transfer, AUC remained high (`0.9680`) but the transferred threshold produced poor operating-point behavior (high FAR). After calibrating the threshold on a small disjoint CEDAR subset, AUC and EER stayed nearly unchanged while FAR/FRR became much more reasonable.
+
+This shows that the learned embedding transfers better than the threshold itself. In other words, the representation generalizes moderately well, but deployment still requires dataset-specific calibration.
+
+#### Interpretation of training versus validation behavior
+
+The fixed-split results show that the model learns the training distribution
+very strongly: training AUC is almost perfect and training EER is below `1%`.
+Validation performance drops, but it remains strong, with validation AUC near
+`0.98` and validation EER near `7%`. I interpret this as moderate
+overfitting, not catastrophic overfitting.
+
+That gap is expected in writer-independent verification, because validation
+writers are completely unseen during training. More importantly, the project
+showed that the main limitation is not just ordinary overfitting. The broader
+story is:
+
+- the initial model worked on clean validation but was not robust
+- targeted augmentation improved both clean validation and robustness
+- external evaluation showed that the learned representation transfers better
+  than the threshold
+
+So the remaining limitation is a combination of:
+
+- sensitivity to appearance shifts
+- threshold calibration mismatch across datasets
+- remaining difficulty with cross-writer impostors
+
+#### Ideas for future improvement
+
+If I continued this project, the most useful next steps would be:
+
+1. **Better threshold calibration**
+   The CEDAR experiments show clearly that the threshold is dataset-dependent.
+   More systematic calibration would improve deployment quality.
+
+2. **More cross-writer negative emphasis**
+   Since random-impostor rejection remains the harder weakness, I would spend
+   more effort on harder cross-writer negative mining or sampling.
+
+3. **More diverse training data**
+   Mixing more scripts or adding domain-diverse signature data could improve
+   cross-dataset transfer.
+
+4. **Further robustness-focused augmentation**
+   The current augmentation already helped a lot, but more realistic scan and
+   stroke perturbations may improve generalization further.
+
+#### Final conclusion
+
+The final Siamese system is a successful writer-independent offline signature
+verification pipeline. On BHSig validation, it achieves strong verification
+performance, with **98.52% train accuracy** and **92.95% validation accuracy**
+at the locked threshold, **train/validation AUC of 0.999/0.980**, and
+**train/validation EER of 0.0085/0.0706**. The most important technical result
+is that mild targeted augmentation substantially improved generalization
+without harming clean validation performance.
+
+External evaluation on CEDAR showed that the learned embedding transfers
+reasonably well, but the threshold does not transfer cleanly across datasets.
+After CEDAR-side calibration, the operating-point behavior improves greatly
+while AUC and EER remain nearly unchanged. This strongly suggests that
+calibration is a major part of cross-dataset deployment.
+
+Overall, I conclude that the Siamese approach is effective for offline
+signature verification, but robustness and threshold calibration are just as
+important as raw validation accuracy.
+
+### Contribution
+
+- **Shuvashish Mondal**
+  - Designed and implemented the Siamese network pipeline
+  - Wrote training and validation code
+  - Performed hyperparameter tuning
+  - Ran experiments and analyzed results
+
+- **Kathan Desai**
+
+- **Combined**
+  - Decided on the overall project direction
+  - Selected the final dataset used in the project
+  - Reviewed the final repository and report

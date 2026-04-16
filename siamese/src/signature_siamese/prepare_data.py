@@ -4,7 +4,7 @@ This module intentionally uses top-level editable variables instead of argparse.
 Edit the configuration block below, then run:
 
     SIGNATURE_DATA_ROOT=/path/to/cedar-bhsig260 \
-    PYTHONPATH=siamese-shuvo/src \
+    PYTHONPATH=siamese/src \
     conda run -n machine-learning python -m signature_siamese.prepare_data
 """
 
@@ -49,13 +49,13 @@ SEED = 42
 
 # Outputs are profile-specific to avoid accidental overwrite.
 # RAW_INDEX_CSV contains all parsed samples before split assignment.
-RAW_INDEX_CSV = Path("siamese-shuvo/manifests/bhsig260_index_raw.csv")
+RAW_INDEX_CSV = Path("siamese/manifests/bhsig260_index_raw.csv")
 # FULL_* outputs are produced when DATASET_PROFILE == "full".
-FULL_MANIFEST_CSV = Path("siamese-shuvo/manifests/bhsig260_manifest.csv")
-FULL_STATS_JSON = Path("siamese-shuvo/manifests/bhsig260_manifest_stats.json")
+FULL_MANIFEST_CSV = Path("siamese/manifests/bhsig260_manifest.csv")
+FULL_STATS_JSON = Path("siamese/manifests/bhsig260_manifest_stats.json")
 # SMALL_* outputs are produced when DATASET_PROFILE == "small".
-SMALL_MANIFEST_CSV = Path("siamese-shuvo/manifests/bhsig260_small_manifest.csv")
-SMALL_STATS_JSON = Path("siamese-shuvo/manifests/bhsig260_small_manifest_stats.json")
+SMALL_MANIFEST_CSV = Path("siamese/manifests/bhsig260_small_manifest.csv")
+SMALL_STATS_JSON = Path("siamese/manifests/bhsig260_small_manifest_stats.json")
 
 # Small-profile controls.
 # Number of writers kept per script in the small-profile subset.

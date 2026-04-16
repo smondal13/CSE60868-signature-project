@@ -1,0 +1,13 @@
+{
+  "checkpoint": "siamese/runs/siamese_full_hpo_lr5e4_m075_20260408-152352/checkpoints/best.pt",
+  "correct": true,
+  "device": "mps",
+  "distance": 0.5612128973007202,
+  "expected_label": 0,
+  "expected_text": "non-match",
+  "image_a": "validation/B-S-83-G-04.tif",
+  "image_b": "validation/B-S-83-F-05.tif",
+  "predicted_label": 0,
+  "predicted_text": "non-match",
+  "threshold": 0.5195213260507225
+}

@@ -1,0 +1,33 @@
+{
+  "cedar_root": "/Users/smondal/Library/CloudStorage/GoogleDrive-smondal@nd.edu/My Drive/1. ND/1. PhD courses/Spring 26/Project/cedar-bhsig260/CEDAR",
+  "checkpoint": "siamese/runs/siamese_full_hpo_lr5e4_m075_20260408-152352/checkpoints/best.pt",
+  "device": "mps",
+  "evaluation_mode": "cedar_zero_shot_mode_a",
+  "locked_threshold": 0.5195213260507225,
+  "max_random_impostors_per_writer": 200,
+  "max_skilled_forgeries_per_writer": null,
+  "max_writers": null,
+  "metrics": {
+    "auc": 0.9679974333689648,
+    "eer": 0.09503269468552909,
+    "eer_threshold": 0.07271907489472863,
+    "far_at_eer": 0.09382033008252064,
+    "far_at_locked_threshold": 0.5719476744186046,
+    "frr_at_eer": 0.09624505928853755,
+    "frr_at_locked_threshold": 0.0,
+    "n_pairs": 57836
+  },
+  "pair_counts": {
+    "positive": 15180,
+    "random_impostor": 10976,
+    "skilled": 31680
+  },
+  "pair_type_locked_threshold_metrics": {
+    "positive_frr_at_locked_threshold": 0.0,
+    "positive_n_pairs": 15180,
+    "random_impostor_far_at_locked_threshold": 1.0,
+    "random_impostor_n_pairs": 10976,
+    "skilled_far_at_locked_threshold": 0.42364267676767675,
+    "skilled_n_pairs": 31680
+  }
+}

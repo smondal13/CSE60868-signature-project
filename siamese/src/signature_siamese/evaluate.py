@@ -4,19 +4,23 @@ This module intentionally uses top-level editable variables instead of argparse.
 Edit the configuration block below, then run:
 
     SIGNATURE_DATA_ROOT=/path/to/cedar-bhsig260 \
-    PYTHONPATH=siamese-shuvo/src \
+    PYTHONPATH=siamese/src \
     conda run -n machine-learning python -m signature_siamese.evaluate
 """
 
 from __future__ import annotations
 
 import csv
+import os
 from collections import Counter
 from pathlib import Path
-
-import torch
 from torch.utils.data import DataLoader
 
+from .checkpoints import (
+    infer_embedding_dim,
+    load_checkpoint,
+    resolve_checkpoint_path,
+)
 from .data.datasets import SignatureDataset
 from .data.pairs import (
     VerificationPairDataset,
@@ -32,15 +36,15 @@ from .utils import dump_json, ensure_dir
 # Top-level configuration (edit these values directly)
 # -----------------------------------------------------------------------------
 # Select whether evaluation should read the small debug manifest or full manifest.
-RUN_PROFILE = "small"  # "small" or "full"
+RUN_PROFILE = os.getenv("SIGNATURE_RUN_PROFILE", "small")  # "small" or "full"
 # Choose evaluation subset. "test" should be used for final held-out reporting.
-SPLIT = "val"  # "val" or "test"
+SPLIT = os.getenv("SIGNATURE_EVAL_SPLIT", "val")  # "train" | "val" | "test"
 
 if RUN_PROFILE == "small":
     # Small-profile evaluation parameters for fast turnaround.
-    MANIFEST_CSV = Path("siamese-shuvo/manifests/bhsig260_small_manifest.csv")
+    MANIFEST_CSV = Path("siamese/manifests/bhsig260_small_manifest.csv")
     RUN_NAME_PREFIX = "small_debug"
-    OUTPUT_DIR = Path("siamese-shuvo/results/small_debug")
+    DEFAULT_OUTPUT_DIR = Path("siamese/results/small_debug")
     EVAL_BATCH_SIZE = 256
     THRESHOLD_POINTS = 400
     MAX_SKILLED_FORGERIES_PER_WRITER = 20
@@ -48,9 +52,9 @@ if RUN_PROFILE == "small":
     NUM_WORKERS = 0
 elif RUN_PROFILE == "full":
     # Full-profile evaluation parameters for report-quality metrics.
-    MANIFEST_CSV = Path("siamese-shuvo/manifests/bhsig260_manifest.csv")
+    MANIFEST_CSV = Path("siamese/manifests/bhsig260_manifest.csv")
     RUN_NAME_PREFIX = "siamese_full"
-    OUTPUT_DIR = Path("siamese-shuvo/results/full")
+    DEFAULT_OUTPUT_DIR = Path("siamese/results/full")
     EVAL_BATCH_SIZE = 128
     THRESHOLD_POINTS = 2000
     MAX_SKILLED_FORGERIES_PER_WRITER = 720
@@ -59,8 +63,16 @@ elif RUN_PROFILE == "full":
 else:
     raise ValueError("RUN_PROFILE must be either 'small' or 'full'.")
 
+output_dir_override = os.getenv("SIGNATURE_OUTPUT_DIR")
+OUTPUT_DIR = Path(output_dir_override) if output_dir_override else DEFAULT_OUTPUT_DIR
+num_workers_override = os.getenv("SIGNATURE_NUM_WORKERS")
+if num_workers_override is not None:
+    NUM_WORKERS = int(num_workers_override)
 # Leave as None to auto-load latest run checkpoint by prefix.
-CHECKPOINT_PATH: Path | None = None
+checkpoint_override = os.getenv("SIGNATURE_CHECKPOINT_PATH")
+CHECKPOINT_PATH: Path | None = (
+    Path(checkpoint_override) if checkpoint_override else None
+)
 
 # Image geometry must match training preprocessing.
 IMAGE_HEIGHT = 155
@@ -76,22 +88,6 @@ DEVICE = "auto"  # auto | cuda | mps | cpu
 # Seed for deterministic pair generation.
 SEED = 42
 # -----------------------------------------------------------------------------
-
-
-def _load_checkpoint(path: Path, map_location: str = "cpu") -> dict[str, object]:
-    # weights_only=False is required because checkpoints include metadata dicts.
-    payload = torch.load(path, map_location=map_location, weights_only=False)
-    if not isinstance(payload, dict):
-        raise RuntimeError(f"Unexpected checkpoint format at {path}.")
-    return payload
-
-
-def _infer_embedding_dim(checkpoint: dict[str, object], fallback: int) -> int:
-    # Prefer checkpoint metadata to avoid mismatch between train/eval dimensions.
-    config = checkpoint.get("config", {})
-    if isinstance(config, dict) and "embedding_dim" in config:
-        return int(config["embedding_dim"])
-    return fallback
 
 
 def _save_roc_csv(path: Path, curve_payload: dict[str, list[float]]) -> None:
@@ -110,46 +106,15 @@ def _save_roc_csv(path: Path, curve_payload: dict[str, list[float]]) -> None:
             writer.writerow(row)
 
 
-def _resolve_latest_checkpoint_by_prefix(
-    prefix: str, runs_root: Path = Path("siamese-shuvo/runs")
-) -> Path:
-    # Find most recent run folder matching the configured name prefix.
-    candidates = sorted(
-        [
-            path
-            for path in runs_root.iterdir()
-            if path.is_dir() and path.name.startswith(f"{prefix}_")
-        ],
-        key=lambda path: path.name,
-    )
-    if not candidates:
-        raise FileNotFoundError(
-            f"No run directories found under {runs_root} with prefix '{prefix}_'."
-        )
-
-    latest = candidates[-1]
-    checkpoint = latest / "checkpoints" / "best.pt"
-    if not checkpoint.exists():
-        raise FileNotFoundError(f"Missing checkpoint at expected path: {checkpoint}")
-    return checkpoint
-
-
-def _resolve_checkpoint_path() -> Path:
-    # Use explicit checkpoint when set; otherwise infer from latest run folder.
-    if CHECKPOINT_PATH is not None:
-        return CHECKPOINT_PATH
-    return _resolve_latest_checkpoint_by_prefix(RUN_NAME_PREFIX)
-
-
 def main() -> None:
     # Resolve compute device for evaluation workload.
     preferred_device = None if DEVICE == "auto" else DEVICE
     device = resolve_device(preferred=preferred_device)
 
     # Load trained model state.
-    checkpoint_path = _resolve_checkpoint_path()
-    checkpoint = _load_checkpoint(checkpoint_path)
-    embedding_dim = _infer_embedding_dim(checkpoint, fallback=EMBEDDING_DIM)
+    checkpoint_path = resolve_checkpoint_path(CHECKPOINT_PATH, RUN_NAME_PREFIX)
+    checkpoint = load_checkpoint(checkpoint_path)
+    embedding_dim = infer_embedding_dim(checkpoint, fallback=EMBEDDING_DIM)
 
     model = SiameseNetwork(embedding_dim=embedding_dim)
     model.load_state_dict(checkpoint["model_state"])
@@ -236,13 +201,15 @@ def main() -> None:
         f"EER={result.eer:.4f}, "
         f"EER threshold={result.eer_threshold:.6f}, "
         f"FAR@EER={result.far_at_eer:.4f}, "
-        f"FRR@EER={result.frr_at_eer:.4f}"
+        f"FRR@EER={result.frr_at_eer:.4f}, "
+        f"ACC@EER={result.accuracy_at_eer:.4f}"
     )
     if locked_threshold is not None:
         print(
             f"Locked threshold={locked_threshold:.6f} | "
             f"FAR={result.far_at_locked_threshold:.4f} | "
-            f"FRR={result.frr_at_locked_threshold:.4f}"
+            f"FRR={result.frr_at_locked_threshold:.4f} | "
+            f"ACC={result.accuracy_at_locked_threshold:.4f}"
         )
     print(f"Saved metrics: {metrics_path}")
     print(f"Saved ROC CSV: {roc_path}")

@@ -4,12 +4,13 @@ This module intentionally uses top-level editable variables instead of argparse.
 Edit the configuration block below, then run:
 
     SIGNATURE_DATA_ROOT=/path/to/cedar-bhsig260 \
-    PYTHONPATH=siamese-shuvo/src \
+    PYTHONPATH=siamese/src \
     conda run -n machine-learning python -m signature_siamese.train
 """
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import torch
@@ -22,6 +23,7 @@ from tqdm import tqdm
 from .data.datasets import SignatureDataset
 from .data.pairs import VerificationPairDataset, build_verification_pairs
 from .data.samplers import WriterAwareBatchSampler
+from .data.transforms import build_train_image_transform
 from .device import autocast_enabled, resolve_device
 from .eval_utils import eval_result_to_dict, evaluate_pair_loader
 from .loss import ContrastiveLoss
@@ -29,67 +31,101 @@ from .mining import mine_pairs_from_batch
 from .model.siamese import SiameseNetwork
 from .utils import dump_json, ensure_dir, set_seed, timestamp_tag
 
+
+def _env_str(name: str, default: str) -> str:
+    return os.getenv(name, default)
+
+
+def _env_int(name: str, default: int) -> int:
+    return int(os.getenv(name, str(default)))
+
+
+def _env_float(name: str, default: float) -> float:
+    return float(os.getenv(name, str(default)))
+
+
 # -----------------------------------------------------------------------------
 # Top-level configuration (edit these values directly)
 # -----------------------------------------------------------------------------
 # "small": fast sanity-check run on the small manifest.
 # "full": full-scale training settings.
-RUN_PROFILE = "small"
+RUN_PROFILE = _env_str("SIGNATURE_RUN_PROFILE", "full")  # small | full
 
 # Shared image geometry expected by the preprocessing pipeline.
-IMAGE_HEIGHT = 155
-IMAGE_WIDTH = 220
+IMAGE_HEIGHT = _env_int("SIGNATURE_IMAGE_HEIGHT", 155)
+IMAGE_WIDTH = _env_int("SIGNATURE_IMAGE_WIDTH", 220)
 # Embedding dimension produced by the Siamese backbone.
-EMBEDDING_DIM = 128
+EMBEDDING_DIM = _env_int("SIGNATURE_EMBEDDING_DIM", 128)
 # Optimizer parameters.
-LR = 1e-3
-WEIGHT_DECAY = 1e-4
+LR = _env_float("SIGNATURE_LR", 1e-3)
+WEIGHT_DECAY = _env_float("SIGNATURE_WEIGHT_DECAY", 1e-4)
 # Contrastive loss margin.
-MARGIN = 1.0
+MARGIN = _env_float("SIGNATURE_MARGIN", 1.0)
 # Gradient clipping threshold to stabilize optimization.
-GRAD_CLIP_NORM = 5.0
+GRAD_CLIP_NORM = _env_float("SIGNATURE_GRAD_CLIP_NORM", 5.0)
 # Number of hard negatives selected per positive pair in a batch.
-HARD_NEGATIVES_PER_POSITIVE = 2
+HARD_NEGATIVES_PER_POSITIVE = _env_int("SIGNATURE_HARD_NEGATIVES_PER_POSITIVE", 2)
 # Include cross-writer pairs as additional negatives during training.
 INCLUDE_CROSS_WRITER_NEGATIVES = True
 # Include cross-writer impostors in validation/test pair generation.
 INCLUDE_CROSS_WRITER_IMPOSTORS = True
 # Number of threshold points used when sweeping FAR/FRR curves.
-THRESHOLD_POINTS = 400
+THRESHOLD_POINTS = _env_int("SIGNATURE_THRESHOLD_POINTS", 400)
 # Reproducibility seed for sampling and initialization.
-SEED = 42
+SEED = _env_int("SIGNATURE_SEED", 42)
 # Device selector: auto prefers cuda, then mps, then cpu.
-DEVICE = "auto"  # auto | cuda | mps | cpu
+DEVICE = _env_str("SIGNATURE_DEVICE", "auto")  # auto | cuda | mps | cpu
+# Mild stochastic augmentation profile for training images.
+TRAIN_AUGMENTATION_PROFILE = _env_str(
+    "SIGNATURE_TRAIN_AUG_PROFILE",
+    "mild_v1",
+)  # none | mild_v1
+# Optional run-name suffix so CRC jobs and future sweeps are easier to compare.
+RUN_NAME_SUFFIX = _env_str("SIGNATURE_RUN_NAME_SUFFIX", "")
+# Stop early once validation EER fails to improve for this many epochs.
+EARLY_STOP_PATIENCE = _env_int("SIGNATURE_EARLY_STOP_PATIENCE", 6)
 
 # Root output directory for runs/checkpoints/tensorboard.
-OUTPUT_ROOT = Path("siamese-shuvo/runs")
+OUTPUT_ROOT = Path(_env_str("SIGNATURE_OUTPUT_ROOT", "siamese/runs"))
 
 if RUN_PROFILE == "small":
     # Small-profile manifest and conservative settings for rapid debugging.
-    MANIFEST_CSV = Path("siamese-shuvo/manifests/bhsig260_small_manifest.csv")
+    MANIFEST_CSV = Path("siamese/manifests/bhsig260_small_manifest.csv")
     RUN_NAME = "small_debug"
-    EPOCHS = 20
-    WRITERS_PER_BATCH = 4
-    SAMPLES_PER_WRITER = 6
-    MIN_GENUINE_PER_WRITER = 2
-    TRAIN_STEPS_PER_EPOCH = 80
-    EVAL_BATCH_SIZE = 256
-    MAX_SKILLED_FORGERIES_PER_WRITER = 60
-    MAX_RANDOM_IMPOSTORS_PER_WRITER = 30
-    NUM_WORKERS = 0
+    EPOCHS = _env_int("SIGNATURE_EPOCHS", 20)
+    WRITERS_PER_BATCH = _env_int("SIGNATURE_WRITERS_PER_BATCH", 4)
+    SAMPLES_PER_WRITER = _env_int("SIGNATURE_SAMPLES_PER_WRITER", 6)
+    MIN_GENUINE_PER_WRITER = _env_int("SIGNATURE_MIN_GENUINE_PER_WRITER", 2)
+    TRAIN_STEPS_PER_EPOCH = _env_int("SIGNATURE_TRAIN_STEPS_PER_EPOCH", 80)
+    EVAL_BATCH_SIZE = _env_int("SIGNATURE_EVAL_BATCH_SIZE", 256)
+    MAX_SKILLED_FORGERIES_PER_WRITER = _env_int(
+        "SIGNATURE_MAX_SKILLED_FORGERIES_PER_WRITER",
+        60,
+    )
+    MAX_RANDOM_IMPOSTORS_PER_WRITER = _env_int(
+        "SIGNATURE_MAX_RANDOM_IMPOSTORS_PER_WRITER",
+        30,
+    )
+    NUM_WORKERS = _env_int("SIGNATURE_NUM_WORKERS", 0)
 elif RUN_PROFILE == "full":
     # Full-profile manifest and larger settings for final experiments.
-    MANIFEST_CSV = Path("siamese-shuvo/manifests/bhsig260_manifest.csv")
+    MANIFEST_CSV = Path("siamese/manifests/bhsig260_manifest.csv")
     RUN_NAME = "siamese_full"
-    EPOCHS = 30
-    WRITERS_PER_BATCH = 8
-    SAMPLES_PER_WRITER = 6
-    MIN_GENUINE_PER_WRITER = 2
-    TRAIN_STEPS_PER_EPOCH = 200
-    EVAL_BATCH_SIZE = 128
-    MAX_SKILLED_FORGERIES_PER_WRITER = 720
-    MAX_RANDOM_IMPOSTORS_PER_WRITER = 200
-    NUM_WORKERS = -1
+    EPOCHS = _env_int("SIGNATURE_EPOCHS", 30)
+    WRITERS_PER_BATCH = _env_int("SIGNATURE_WRITERS_PER_BATCH", 8)
+    SAMPLES_PER_WRITER = _env_int("SIGNATURE_SAMPLES_PER_WRITER", 6)
+    MIN_GENUINE_PER_WRITER = _env_int("SIGNATURE_MIN_GENUINE_PER_WRITER", 2)
+    TRAIN_STEPS_PER_EPOCH = _env_int("SIGNATURE_TRAIN_STEPS_PER_EPOCH", 200)
+    EVAL_BATCH_SIZE = _env_int("SIGNATURE_EVAL_BATCH_SIZE", 128)
+    MAX_SKILLED_FORGERIES_PER_WRITER = _env_int(
+        "SIGNATURE_MAX_SKILLED_FORGERIES_PER_WRITER",
+        720,
+    )
+    MAX_RANDOM_IMPOSTORS_PER_WRITER = _env_int(
+        "SIGNATURE_MAX_RANDOM_IMPOSTORS_PER_WRITER",
+        200,
+    )
+    NUM_WORKERS = _env_int("SIGNATURE_NUM_WORKERS", -1)
 else:
     raise ValueError("RUN_PROFILE must be either 'small' or 'full'.")
 # -----------------------------------------------------------------------------
@@ -122,9 +158,13 @@ def main() -> None:
     # Configure dataloader behavior for the current hardware target.
     workers = _auto_workers(NUM_WORKERS, device=device)
     pin_memory = device.type == "cuda"
+    train_image_transform = build_train_image_transform(TRAIN_AUGMENTATION_PROFILE)
+    effective_run_name = RUN_NAME
+    if RUN_NAME_SUFFIX:
+        effective_run_name = f"{RUN_NAME}_{RUN_NAME_SUFFIX}"
 
     # Create run-specific artifact directories.
-    run_dir = ensure_dir(OUTPUT_ROOT / f"{RUN_NAME}_{timestamp_tag()}")
+    run_dir = ensure_dir(OUTPUT_ROOT / f"{effective_run_name}_{timestamp_tag()}")
     checkpoint_dir = ensure_dir(run_dir / "checkpoints")
     tensorboard_dir = ensure_dir(run_dir / "tensorboard")
     summary_path = run_dir / "training_summary.json"
@@ -136,7 +176,7 @@ def main() -> None:
             "run_profile": RUN_PROFILE,
             "manifest_csv": str(MANIFEST_CSV),
             "output_root": str(OUTPUT_ROOT),
-            "run_name": RUN_NAME,
+            "run_name": effective_run_name,
             "image_height": IMAGE_HEIGHT,
             "image_width": IMAGE_WIDTH,
             "embedding_dim": EMBEDDING_DIM,
@@ -156,6 +196,8 @@ def main() -> None:
             "max_skilled_forgeries_per_writer": MAX_SKILLED_FORGERIES_PER_WRITER,
             "max_random_impostors_per_writer": MAX_RANDOM_IMPOSTORS_PER_WRITER,
             "include_cross_writer_impostors": INCLUDE_CROSS_WRITER_IMPOSTORS,
+            "train_augmentation_profile": TRAIN_AUGMENTATION_PROFILE,
+            "early_stop_patience": EARLY_STOP_PATIENCE,
             "resolved_num_workers": workers,
             "seed": SEED,
             "device": DEVICE,
@@ -169,6 +211,7 @@ def main() -> None:
         split="train",
         image_height=IMAGE_HEIGHT,
         image_width=IMAGE_WIDTH,
+        image_transform=train_image_transform,
     )
     val_dataset = SignatureDataset(
         manifest_csv=MANIFEST_CSV,
@@ -225,9 +268,11 @@ def main() -> None:
 
     best_val_eer = float("inf")
     best_threshold: float | None = None
+    epochs_without_improvement = 0
 
     print(f"Training run directory: {run_dir}")
     print(f"Profile: {RUN_PROFILE}")
+    print(f"Train augmentation: {TRAIN_AUGMENTATION_PROFILE}")
     print(f"Device: {device.type} | AMP: {use_amp} | Workers: {workers}")
     print(f"Train samples: {len(train_dataset)} | Val pairs: {len(val_pair_dataset)}")
 
@@ -349,6 +394,9 @@ def main() -> None:
         if is_best:
             best_val_eer = val_result.eer
             best_threshold = val_result.eer_threshold
+            epochs_without_improvement = 0
+        else:
+            epochs_without_improvement += 1
 
         # Save the latest state each epoch; keep a separate best checkpoint.
         checkpoint_payload: dict[str, object] = {
@@ -362,6 +410,7 @@ def main() -> None:
                 "run_profile": RUN_PROFILE,
                 "embedding_dim": EMBEDDING_DIM,
                 "margin": MARGIN,
+                "train_augmentation_profile": TRAIN_AUGMENTATION_PROFILE,
             },
             "resolved_device": device.type,
         }
@@ -377,6 +426,13 @@ def main() -> None:
             f"best_val_eer={best_val_eer:.4f}"
         )
 
+        if EARLY_STOP_PATIENCE > 0 and epochs_without_improvement >= EARLY_STOP_PATIENCE:
+            print(
+                "Early stopping triggered because validation EER did not improve "
+                f"for {EARLY_STOP_PATIENCE} consecutive epochs."
+            )
+            break
+
     writer.close()
 
     # Persist a concise summary for downstream reporting.
@@ -385,6 +441,7 @@ def main() -> None:
         "profile": RUN_PROFILE,
         "best_val_eer": best_val_eer,
         "best_threshold": best_threshold,
+        "train_augmentation_profile": TRAIN_AUGMENTATION_PROFILE,
         "device": device.type,
         "train_samples": len(train_dataset),
         "val_pairs": len(val_pair_dataset),

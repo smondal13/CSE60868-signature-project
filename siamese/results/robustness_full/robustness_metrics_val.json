@@ -1,0 +1,151 @@
+{
+  "checkpoint": "/users/smondal/signature-project/repo/siamese/runs/siamese_full_hpo_lr5e4_m075_20260408-152352/checkpoints/best.pt",
+  "device": "cuda",
+  "locked_threshold": 0.5195213260507225,
+  "pair_counts": {
+    "positive": 14352,
+    "random_impostor": 10324,
+    "skilled": 37440
+  },
+  "run_profile": "full",
+  "split": "val",
+  "sweep": [
+    {
+      "config": {
+        "kind": "none",
+        "name": "baseline"
+      },
+      "delta_from_baseline": {
+        "auc": 0.0,
+        "eer": 0.0,
+        "far_at_locked_threshold": 0.0,
+        "frr_at_locked_threshold": 0.0
+      },
+      "metrics": {
+        "auc": 0.9800344737450306,
+        "eer": 0.07063870654650321,
+        "eer_threshold": 0.5199846918431446,
+        "far_at_eer": 0.07076459258018591,
+        "far_at_locked_threshold": 0.07036680345029729,
+        "frr_at_eer": 0.07051282051282051,
+        "frr_at_locked_threshold": 0.07107023411371237,
+        "n_pairs": 62116
+      }
+    },
+    {
+      "config": {
+        "degrees": 3.0,
+        "kind": "rotate",
+        "name": "rotate_p3"
+      },
+      "delta_from_baseline": {
+        "auc": -0.0007359794736327974,
+        "eer": 0.0017434142010182424,
+        "far_at_locked_threshold": -0.0029520140691734337,
+        "frr_at_locked_threshold": 0.007943143812709039
+      },
+      "metrics": {
+        "auc": 0.9792984942713978,
+        "eer": 0.07238212074752146,
+        "eer_threshold": 0.5271274441477655,
+        "far_at_eer": 0.07264885687965832,
+        "far_at_locked_threshold": 0.06741478938112386,
+        "frr_at_eer": 0.07211538461538461,
+        "frr_at_locked_threshold": 0.07901337792642141,
+        "n_pairs": 62116
+      }
+    },
+    {
+      "config": {
+        "degrees": -3.0,
+        "kind": "rotate",
+        "name": "rotate_m3"
+      },
+      "delta_from_baseline": {
+        "auc": -0.0037263555522941694,
+        "eer": 0.007953063450108697,
+        "far_at_locked_threshold": 0.0043966166987689514,
+        "frr_at_locked_threshold": 0.012054069119286512
+      },
+      "metrics": {
+        "auc": 0.9763081181927364,
+        "eer": 0.07859176999661191,
+        "eer_threshold": 0.5239940582326855,
+        "far_at_eer": 0.07886692906791726,
+        "far_at_locked_threshold": 0.07476342014906624,
+        "frr_at_eer": 0.07831661092530658,
+        "frr_at_locked_threshold": 0.08312430323299888,
+        "n_pairs": 62116
+      }
+    },
+    {
+      "config": {
+        "kind": "resolution",
+        "name": "resolution_50",
+        "scale": 0.5
+      },
+      "delta_from_baseline": {
+        "auc": -0.03538566094357276,
+        "eer": 0.0552553211969254,
+        "far_at_locked_threshold": 0.022276191273762666,
+        "frr_at_locked_threshold": 0.11587235228539576
+      },
+      "metrics": {
+        "auc": 0.9446488128014578,
+        "eer": 0.12589402774342862,
+        "eer_threshold": 0.554337167341808,
+        "far_at_eer": 0.12553387488485052,
+        "far_at_locked_threshold": 0.09264299472405996,
+        "frr_at_eer": 0.1262541806020067,
+        "frr_at_locked_threshold": 0.18694258639910813,
+        "n_pairs": 62116
+      }
+    },
+    {
+      "config": {
+        "delta_pixels": 1,
+        "kind": "thickness",
+        "name": "thickness_plus1"
+      },
+      "delta_from_baseline": {
+        "auc": -0.011156896267294325,
+        "eer": 0.020713711258914483,
+        "far_at_locked_threshold": -0.0006908969098065459,
+        "frr_at_locked_threshold": 0.053163322185061326
+      },
+      "metrics": {
+        "auc": 0.9688775774777363,
+        "eer": 0.0913524178054177,
+        "eer_threshold": 0.5462486506283671,
+        "far_at_eer": 0.09121932836445859,
+        "far_at_locked_threshold": 0.06967590654049075,
+        "frr_at_eer": 0.09148550724637682,
+        "frr_at_locked_threshold": 0.1242335562987737,
+        "n_pairs": 62116
+      }
+    },
+    {
+      "config": {
+        "delta_pixels": -1,
+        "kind": "thickness",
+        "name": "thickness_minus1"
+      },
+      "delta_from_baseline": {
+        "auc": -0.07962365517141756,
+        "eer": 0.10742570226598126,
+        "far_at_locked_threshold": 0.042982162297965004,
+        "frr_at_locked_threshold": 0.21119007803790413
+      },
+      "metrics": {
+        "auc": 0.900410818573613,
+        "eer": 0.17806440881248448,
+        "eer_threshold": 0.568637062999056,
+        "far_at_eer": 0.17810484884013064,
+        "far_at_locked_threshold": 0.1133489657482623,
+        "frr_at_eer": 0.17802396878483834,
+        "frr_at_locked_threshold": 0.2822603121516165,
+        "n_pairs": 62116
+      }
+    }
+  ]
+}

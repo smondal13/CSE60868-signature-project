@@ -1,0 +1,26 @@
+{
+  "checkpoint": "/users/smondal/signature-project/repo/siamese/runs/siamese_full_hpo_lr5e4_m075_20260408-152352/checkpoints/best.pt",
+  "device": "cuda",
+  "locked_threshold": 0.5195213260507225,
+  "metrics": {
+    "accuracy_at_eer": 0.9292935797540086,
+    "accuracy_at_locked_threshold": 0.9294706677828579,
+    "auc": 0.9800344737450306,
+    "eer": 0.07063870654650321,
+    "eer_threshold": 0.5199846918431446,
+    "far_at_eer": 0.07076459258018591,
+    "far_at_locked_threshold": 0.07036680345029729,
+    "frr_at_eer": 0.07051282051282051,
+    "frr_at_locked_threshold": 0.07107023411371237,
+    "n_negative_pairs": 47764,
+    "n_pairs": 62116,
+    "n_positive_pairs": 14352
+  },
+  "pair_counts": {
+    "positive": 14352,
+    "random_impostor": 10324,
+    "skilled": 37440
+  },
+  "run_profile": "full",
+  "split": "val"
+}

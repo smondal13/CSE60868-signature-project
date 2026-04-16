@@ -1,0 +1,20 @@
+{
+  "best_threshold": 0.851070271398788,
+  "best_val_eer": 0.08312325000091028,
+  "device": "cuda",
+  "last_val": {
+    "auc": 0.970615459292749,
+    "eer": 0.08878168834002406,
+    "eer_threshold": 0.8653915092759861,
+    "far_at_eer": 0.08726237333556654,
+    "far_at_locked_threshold": 0.07744326270831589,
+    "frr_at_eer": 0.0903010033444816,
+    "frr_at_locked_threshold": 0.0995680044593088,
+    "n_pairs": 62116
+  },
+  "profile": "full",
+  "run_dir": "siamese/runs/siamese_full_hpo_lr5e4_m125_20260408-152352",
+  "train_augmentation_profile": "mild_v1",
+  "train_samples": 8424,
+  "val_pairs": 62116
+}

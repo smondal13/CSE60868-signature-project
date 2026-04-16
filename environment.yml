@@ -12,4 +12,6 @@ dependencies:
   - tensorboard>=2.12
   - tqdm>=4.65
   - matplotlib>=3.8
+  - setuptools>=68
+  - wheel
   - pip

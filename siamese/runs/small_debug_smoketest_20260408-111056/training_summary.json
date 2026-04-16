@@ -1,0 +1,20 @@
+{
+  "best_threshold": 0.030118733980601893,
+  "best_val_eer": 0.16899984261882278,
+  "device": "mps",
+  "last_val": {
+    "auc": 0.9027895813660686,
+    "eer": 0.16899984261882278,
+    "eer_threshold": 0.030118733980601893,
+    "far_at_eer": 0.16855524079320114,
+    "far_at_locked_threshold": null,
+    "frr_at_eer": 0.16944444444444445,
+    "frr_at_locked_threshold": null,
+    "n_pairs": 1066
+  },
+  "profile": "small",
+  "run_dir": "siamese/runs/small_debug_smoketest_20260408-111056",
+  "train_augmentation_profile": "mild_v1",
+  "train_samples": 480,
+  "val_pairs": 1066
+}

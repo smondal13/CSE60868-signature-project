@@ -1,0 +1,23 @@
+#!/bin/bash
+#$ -M smondal@nd.edu
+#$ -m abe
+#$ -q gpu
+#$ -l gpu_card=1
+#$ -l h_rt=08:00:00
+#$ -pe smp 4
+#$ -N sig_robust
+#$ -o /users/smondal/signature-project/logs/sig_robust.$JOB_ID.out
+#$ -e /users/smondal/signature-project/logs/sig_robust.$JOB_ID.err
+
+source ~/.bashrc
+conda activate machine-learning
+
+cd /users/smondal/signature-project/repo
+export SIGNATURE_DATA_ROOT=/users/smondal/signature-project/data/cedar-bhsig260
+
+export SIGNATURE_RUN_PROFILE="${SIGNATURE_RUN_PROFILE:-full}"
+export SIGNATURE_EVAL_SPLIT="${SIGNATURE_EVAL_SPLIT:-test}"
+
+# export SIGNATURE_CHECKPOINT_PATH=/users/smondal/signature-project/repo/siamese/runs/siamese_full_YYYYMMDD-HHMMSS/checkpoints/best.pt
+
+python -m signature_siamese.evaluate_robustness
