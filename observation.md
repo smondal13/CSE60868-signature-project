@@ -491,3 +491,117 @@ This makes the natural next step **Mode B**:
 
 If Mode B performs much better while the model stays fixed, then the main issue
 is calibration rather than representation learning.
+
+## 16. Full CEDAR Mode B Result
+
+I then ran **Mode B** on CEDAR:
+
+- keep the BHSig-trained model fixed
+- split CEDAR writers into disjoint calibration and test subsets
+- learn a threshold on the calibration writers only
+- evaluate that locked calibration threshold on the held-out test writers
+
+### Split and calibration setup
+
+- Calibration writers: `11`
+- Test writers: `44`
+- Calibration threshold: `0.0940`
+
+### Calibration-set metrics
+
+- Number of pairs: `11,533`
+- AUC: `0.9719`
+- EER: `0.0869`
+- EER threshold: `0.0940`
+
+### Held-out test metrics
+
+- Number of pairs: `46,254`
+- AUC: `0.9683`
+- EER: `0.0953`
+- Test EER threshold: `0.0687`
+- FAR at calibration threshold: `0.1593`
+- FRR at calibration threshold: `0.0229`
+
+### Pair-type behavior at the calibration threshold
+
+- Positive FRR: `0.0229`
+- Skilled-forgery FAR: `0.0007`
+- Random-impostor FAR: `0.6180`
+
+### Comparison to full CEDAR Mode A
+
+Mode A used the transferred BHSig threshold directly on all CEDAR writers. That
+gave:
+
+- AUC: `0.9680`
+- EER: `0.0950`
+- FAR at locked threshold: `0.5719`
+- FRR at locked threshold: `0.0000`
+
+Mode B on held-out CEDAR test writers gives:
+
+- AUC: `0.9683`
+- EER: `0.0953`
+- FAR at calibration threshold: `0.1593`
+- FRR at calibration threshold: `0.0229`
+
+### Interpretation
+
+This result clarifies what was happening in Mode A.
+
+#### 1. Calibration fixed most of the operating-threshold problem
+
+The biggest improvement is at the locked operating point:
+
+- FAR drops from `0.5719` in Mode A to `0.1593` in Mode B
+- FRR rises only slightly from `0.0000` to `0.0229`
+
+This is a much more sensible verification trade-off on CEDAR. So the poor
+Mode A operating-point behavior was largely caused by threshold mismatch rather
+than total failure of the learned embedding.
+
+#### 2. The underlying representation quality is about the same
+
+Mode A and Mode B have almost the same global discrimination metrics:
+
+- Mode A AUC/EER: `0.9680 / 0.0950`
+- Mode B test AUC/EER: `0.9683 / 0.0953`
+
+This means Mode B did **not** fundamentally change the representation. Instead,
+it used the same representation with a threshold that is better calibrated to
+CEDAR.
+
+#### 3. Cross-writer impostors remain the harder weakness
+
+At the calibration threshold:
+
+- skilled-forgery FAR is extremely low (`0.0007`)
+- random-impostor FAR is still high (`0.6180`)
+
+So after calibration, the model is very good at rejecting same-writer forged
+signatures, but it is still much weaker at rejecting cross-writer genuine
+impostors.
+
+This suggests that the remaining weakness on CEDAR is more about writer
+discrimination across different genuine signatures than about forged-signature
+rejection.
+
+### Updated conclusion from CEDAR
+
+The full CEDAR results now support the following conclusion:
+
+> The BHSig-trained Siamese embedding transfers reasonably well to CEDAR, but
+> the verification threshold is strongly dataset-dependent.
+
+Mode A showed that pure zero-shot threshold transfer is poor. Mode B then
+showed that once the threshold is calibrated on a small CEDAR writer subset,
+the operating-point behavior improves substantially while AUC and EER remain
+nearly unchanged.
+
+So the most important conclusion is:
+
+- the representation generalizes reasonably well
+- the threshold does not transfer cleanly across datasets
+- calibration solves much of the deployment problem
+- cross-writer impostor rejection is still the main remaining weakness on CEDAR

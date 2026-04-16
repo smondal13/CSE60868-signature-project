@@ -11,6 +11,7 @@ Edit the configuration block below, then run:
 from __future__ import annotations
 
 import csv
+import os
 from collections import Counter
 from pathlib import Path
 from torch.utils.data import DataLoader
@@ -35,15 +36,15 @@ from .utils import dump_json, ensure_dir
 # Top-level configuration (edit these values directly)
 # -----------------------------------------------------------------------------
 # Select whether evaluation should read the small debug manifest or full manifest.
-RUN_PROFILE = "small"  # "small" or "full"
+RUN_PROFILE = os.getenv("SIGNATURE_RUN_PROFILE", "small")  # "small" or "full"
 # Choose evaluation subset. "test" should be used for final held-out reporting.
-SPLIT = "val"  # "val" or "test"
+SPLIT = os.getenv("SIGNATURE_EVAL_SPLIT", "val")  # "train" | "val" | "test"
 
 if RUN_PROFILE == "small":
     # Small-profile evaluation parameters for fast turnaround.
     MANIFEST_CSV = Path("siamese/manifests/bhsig260_small_manifest.csv")
     RUN_NAME_PREFIX = "small_debug"
-    OUTPUT_DIR = Path("siamese/results/small_debug")
+    DEFAULT_OUTPUT_DIR = Path("siamese/results/small_debug")
     EVAL_BATCH_SIZE = 256
     THRESHOLD_POINTS = 400
     MAX_SKILLED_FORGERIES_PER_WRITER = 20
@@ -53,7 +54,7 @@ elif RUN_PROFILE == "full":
     # Full-profile evaluation parameters for report-quality metrics.
     MANIFEST_CSV = Path("siamese/manifests/bhsig260_manifest.csv")
     RUN_NAME_PREFIX = "siamese_full"
-    OUTPUT_DIR = Path("siamese/results/full")
+    DEFAULT_OUTPUT_DIR = Path("siamese/results/full")
     EVAL_BATCH_SIZE = 128
     THRESHOLD_POINTS = 2000
     MAX_SKILLED_FORGERIES_PER_WRITER = 720
@@ -62,8 +63,16 @@ elif RUN_PROFILE == "full":
 else:
     raise ValueError("RUN_PROFILE must be either 'small' or 'full'.")
 
+output_dir_override = os.getenv("SIGNATURE_OUTPUT_DIR")
+OUTPUT_DIR = Path(output_dir_override) if output_dir_override else DEFAULT_OUTPUT_DIR
+num_workers_override = os.getenv("SIGNATURE_NUM_WORKERS")
+if num_workers_override is not None:
+    NUM_WORKERS = int(num_workers_override)
 # Leave as None to auto-load latest run checkpoint by prefix.
-CHECKPOINT_PATH: Path | None = None
+checkpoint_override = os.getenv("SIGNATURE_CHECKPOINT_PATH")
+CHECKPOINT_PATH: Path | None = (
+    Path(checkpoint_override) if checkpoint_override else None
+)
 
 # Image geometry must match training preprocessing.
 IMAGE_HEIGHT = 155
@@ -192,13 +201,15 @@ def main() -> None:
         f"EER={result.eer:.4f}, "
         f"EER threshold={result.eer_threshold:.6f}, "
         f"FAR@EER={result.far_at_eer:.4f}, "
-        f"FRR@EER={result.frr_at_eer:.4f}"
+        f"FRR@EER={result.frr_at_eer:.4f}, "
+        f"ACC@EER={result.accuracy_at_eer:.4f}"
     )
     if locked_threshold is not None:
         print(
             f"Locked threshold={locked_threshold:.6f} | "
             f"FAR={result.far_at_locked_threshold:.4f} | "
-            f"FRR={result.frr_at_locked_threshold:.4f}"
+            f"FRR={result.frr_at_locked_threshold:.4f} | "
+            f"ACC={result.accuracy_at_locked_threshold:.4f}"
         )
     print(f"Saved metrics: {metrics_path}")
     print(f"Saved ROC CSV: {roc_path}")

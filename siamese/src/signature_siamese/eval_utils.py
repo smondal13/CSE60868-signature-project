@@ -20,13 +20,17 @@ from .metrics import (
 @dataclass(frozen=True)
 class PairEvalResult:
     n_pairs: int
+    n_positive_pairs: int
+    n_negative_pairs: int
     auc: float
     eer: float
     eer_threshold: float
     far_at_eer: float
     frr_at_eer: float
+    accuracy_at_eer: float
     far_at_locked_threshold: float | None
     frr_at_locked_threshold: float | None
+    accuracy_at_locked_threshold: float | None
     thresholds: np.ndarray
     far_curve: np.ndarray
     frr_curve: np.ndarray
@@ -100,6 +104,12 @@ def evaluate_pair_arrays(
     if distances.size == 0:
         raise RuntimeError("No pair distances supplied for evaluation.")
 
+    is_positive = labels == 1
+    is_negative = labels == 0
+    n_positive_pairs = int(np.sum(is_positive))
+    n_negative_pairs = int(np.sum(is_negative))
+    total_pairs = max(1, int(distances.size))
+
     thresholds = build_thresholds(distances, points=threshold_points)
     threshold_metrics = compute_threshold_metrics(
         distances=distances,
@@ -108,9 +118,13 @@ def evaluate_pair_arrays(
     )
     eer = compute_eer(threshold_metrics)
     auc = compute_auc(threshold_metrics.fpr, threshold_metrics.tpr)
+    accuracy_at_eer = 1.0 - (
+        (eer.far_at_eer * n_negative_pairs) + (eer.frr_at_eer * n_positive_pairs)
+    ) / total_pairs
 
     far_locked: float | None = None
     frr_locked: float | None = None
+    accuracy_locked: float | None = None
     if locked_threshold is not None:
         single_metrics = compute_threshold_metrics(
             distances=distances,
@@ -119,16 +133,23 @@ def evaluate_pair_arrays(
         )
         far_locked = float(single_metrics.far[0])
         frr_locked = float(single_metrics.frr[0])
+        accuracy_locked = 1.0 - (
+            (far_locked * n_negative_pairs) + (frr_locked * n_positive_pairs)
+        ) / total_pairs
 
     return PairEvalResult(
         n_pairs=int(distances.size),
+        n_positive_pairs=n_positive_pairs,
+        n_negative_pairs=n_negative_pairs,
         auc=float(auc),
         eer=float(eer.eer),
         eer_threshold=float(eer.threshold),
         far_at_eer=float(eer.far_at_eer),
         frr_at_eer=float(eer.frr_at_eer),
+        accuracy_at_eer=float(accuracy_at_eer),
         far_at_locked_threshold=far_locked,
         frr_at_locked_threshold=frr_locked,
+        accuracy_at_locked_threshold=accuracy_locked,
         thresholds=threshold_metrics.thresholds,
         far_curve=threshold_metrics.far,
         frr_curve=threshold_metrics.frr,
@@ -159,11 +180,15 @@ def eval_result_to_dict(result: PairEvalResult) -> dict[str, Any]:
     """Convert evaluation dataclass to JSON-serializable dictionary."""
     return {
         "n_pairs": result.n_pairs,
+        "n_positive_pairs": result.n_positive_pairs,
+        "n_negative_pairs": result.n_negative_pairs,
         "auc": result.auc,
         "eer": result.eer,
         "eer_threshold": result.eer_threshold,
         "far_at_eer": result.far_at_eer,
         "frr_at_eer": result.frr_at_eer,
+        "accuracy_at_eer": result.accuracy_at_eer,
         "far_at_locked_threshold": result.far_at_locked_threshold,
         "frr_at_locked_threshold": result.frr_at_locked_threshold,
+        "accuracy_at_locked_threshold": result.accuracy_at_locked_threshold,
     }
