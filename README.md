@@ -433,6 +433,246 @@ Overall, I conclude that the Siamese approach is effective for offline
 signature verification, but robustness and threshold calibration are just as
 important as raw validation accuracy.
 
+
+
+# Part 4 — Kathan Desai (Writer-Dependent CNN Classification Track)
+
+## How to Run Single-Sample Inference
+
+A standalone script `infer_single_sample.py` loads a trained checkpoint
+and classifies a single signature image. The script supports both
+backbones and both datasets; it reads the backbone type, class names,
+and preprocessing parameters from the checkpoint itself.
+
+```bash
+# BHSig ResNet-18 (default):
+python infer_single_sample.py --image ./validation_sample.tif
+
+# BHSig custom CNN:
+python infer_single_sample.py --image ./validation_sample.tif \
+    --checkpoint ./run_results/custom_allclasses_best.pt
+
+# CEDAR ResNet-18:
+python infer_single_sample.py --image ./cedar_sample.png \
+    --checkpoint ./cedar_run_results/cedar_writer_all_resnet18_best.pt
+```
+
+The attached `validation_sample.tif` is a genuine signature from
+BHSig-Hindi writer 011; the expected top-1 prediction is writer `11`.
+
+## Overview
+
+This section reports the final results of the CNN classification track
+on two datasets: BHSig260-Hindi (160 writers, the primary dataset) and
+CEDAR-Buffalo (55 writers, used as a cross-dataset test on a different
+script). On both datasets, we train a model to answer *" who wrote this
+signature?"* On CEDAR, we also train a model to answer *" Is this
+signature real or forged?"* Unlike Shuvashish's Siamese track, which
+verifies signatures from people the model has never seen, these
+classifiers assume every person they will be asked about was already
+seen during training.
+
+## Methodology
+
+Each dataset was split 60/20/20 into training, validation, and test
+partitions by signature index — for each person, their first 14–16
+signatures go to training, the next ~5 to validation, and the last ~5
+to test. No image appears in more than one split. Preprocessing
+inverts images (white strokes on black), resizes, and normalizes.
+Training adds small random rotations, shifts, and shears (±5°, ±5%,
+small shear) so the model doesn't just memorize exact pixel patterns.
+
+We compared two models. The **custom CNN** has four convolutional
+blocks (1→32→64→128→256 channels, each doing a 3×3 convolution,
+GroupNorm, ReLU, and 2×2 max-pooling) followed by the global average
+pooling and a linear classifier — about 430,000 trainable parameters.
+The **ResNet-18** is a well-known pretrained model that has already learned
+general visual features from 1.4 million ImageNet images. We kept
+those pretrained weights and only replaced their final classification
+layer with a fresh one for our writer count, then fine-tuned with a
+lower learning rate on the pretrained parts (3e-5) and a higher rate
+on the new layer (3e-4). Both use Adam with cosine annealing and
+cross-entropy loss.
+
+**Metrics.** Accuracy is the primary metric because both tasks are
+balanced — every class appears about equally in every split. We also
+report the chance baseline (1/N for N classes), since "48.8% accuracy."
+means very different things on a 2-class versus a 160-class problem,
+and per-class accuracy, which catches situations where the overall
+number looks good but the model is quietly failing on specific
+classes.
+
+## Why Two Models? One Per Dataset
+
+A natural question is why we trained separate models for BHSig and
+CEDAR rather than one model that handles both. The short answer is
+that a classifier's output layer is hard-wired to the specific people
+it was trained on. Our BHSig model has 160 output neurons, one per
+BHSig writer. Our CEDAR model has 55 output neurons, one per CEDAR
+writer. You can't use the BHSig model on a CEDAR signature — the 160
+output slots correspond to 160 specific Hindi-script writers, none of
+whom are the CEDAR people. The model would return one of its known
+names with low confidence, which is meaningless.
+
+This is a fundamental limitation of any classifier: it can only assign
+inputs to classes it was explicitly trained on. Adding new writers
+requires retraining the final layer at a minimum. It also means the
+BHSig and CEDAR numbers are not directly comparable to the way results are presented
+from the same model on different test sets would be — they are
+separate experiments using the same architecture and training recipe,
+Run in parallel to see whether the approach holds up across languages.
+
+## Results — Writer Classification
+
+| Dataset | Backbone | Classes | Val Acc | Test Acc | Chance |
+|---|---|---|---|---|---|
+| BHSig-Hindi | Custom CNN | 2 | 100.0% | 100.0% | 50.00% |
+| BHSig-Hindi | Custom CNN | 10 | 76.7% | 76.0% | 10.00% |
+| BHSig-Hindi | Custom CNN | 160 | 49.6% | 48.8% | 0.63% |
+| BHSig-Hindi | ResNet-18 | 160 | 100.0% | **99.6%** | 0.63% |
+| CEDAR | Custom CNN | 2 | 100.0% | 100.0% | 50.00% | 
+| CEDAR | Custom CNN | 10 | 94.0% | 88.0% | 10.00% |
+| CEDAR | Custom CNN | 55 | 91.3% | 89.5% | 1.82% | 
+| CEDAR | ResNet-18 | 55 | 100.0% | **98.6%** | 1.82% |
+
+Two things stand out. First, the pretrained ResNet-18 does extremely
+well on both datasets — 99.6% on BHSig (160 people) and 98.6% on CEDAR
+(55 people). Second, the custom CNN performs far better on CEDAR
+(89.5%) than on BHSig (48.8%). Some of that gap is because CEDAR has
+fewer people to choose from, but some seem to come from the
+scripts themselves: Latin signatures tend to have distinctive
+large-scale shape features (overall slant, initial letter, loops) that
+are easier to pick up than the densely interconnected strokes common
+in Devanagari.
+
+Per-class breakdown on the BHSig ResNet-18 run: 157 of 160 writers
+classified perfectly, every writer predicted at least once, and the 3
+That fails each miss one test sample out of five. Each confused writer
+pair goes only one direction, suggesting near-neighbor style similarity
+rather than systematic mix-ups.
+
+## From 0.6% to 99.6% on BHSig: The Debugging Journey
+
+The first BHSig implementation (described in Part 3) scored 0.6% on the
+160-way task — chance. Figuring out why took real detective work.
+
+Following the professor's suggestion, we first tested whether the model
+could handle easier versions of the task by restricting training to 2
+and then 10 writers. Both still gave near-chance results, ruling out
+the hypothesis that 160 classes were simply too many — something was
+broken before capacity even mattered.
+
+The breakthrough came from a sanity check that compared two different
+ways of measuring training accuracy. Neural networks behave differently
+in "training mode" (with dropout active and BatchNorm using batch
+statistics) versus "evaluation mode" (dropout off, BatchNorm using
+accumulated running averages). Normally, these give similar accuracy on
+the same data. Ours didn't: training mode said the model was learning,
+eval mode said every prediction was the same class.
+
+The culprit was **BatchNorm's running statistics**. BatchNorm keeps a
+moving average of each batch's mean and variance across training, then
+uses that average at evaluation time. That moving average uses momentum
+0.1 — tuned for runs with hundreds of batches. In our 2-class sanity
+test we had 32 total training samples and batch size 32, meaning one
+batch per epoch and only 20 updates in total. The running average never
+had a chance to settle, so the evaluation was normalized with essentially
+random statistics.
+
+The fix replaced BatchNorm with GroupNorm, which normalizes within each
+sample using channel groups and tracks no batch statistics, so it
+behaves identically in training and eval mode. We also dropped the
+batch size from 32 to 8, so even small runs had multiple batches per
+epoch. This single architecture change moved the custom CNN from
+0.625% to 48.75% on the 160-class task — a 78× improvement with no
+other changes.
+
+## The CEDAR Forgery Investigation
+
+When we extended the work to CEDAR, we added a second task: to tell genuine
+signatures apart from forgeries. The initial result looked too good —
+ResNet-18 scored **100% test accuracy**, noticeably above typical
+published benchmarks on CEDAR (usually 80–95%). That prompted a closer
+look.
+
+Visual inspection of the images revealed something important: genuine
+signatures were scanned on textured paper, some with visible ruled paper
+guidelines, while forgeries were on clean white paper. This raised two
+possibilities. The model might be detecting the *paper* rather than the
+*signature*. Or, since the same writers appeared in both training and
+testing, the model might be memorizing each person's genuine signatures
+and flagging anything that looks different. We ran three experiments
+to separate these effects:
+
+| Run | Split | Preprocessing | Test Acc |
+|---|---|---|---|
+| A | Writer-dependent | Standard | **100.0%** |
+| B | Writer-dependent | Binarized (Otsu) | **98.2%** |
+| C | Writer-independent | Binarized | **66.9%** |
+
+Run B removes paper texture using Otsu binarization — each image is
+converted to pure black ink on a pure white background. The drop from
+100% to 98.2% was unexpectedly small: the paper texture wasn't doing
+most of the work.
+
+Run C removes per-writer memorization by holding out 10 writers
+entirely from training. The test set contains only signatures from
+people the model has never seen. Accuracy drops to 66.9% — still well
+above the 50% chance baseline, and within the published range for
+writer-independent forgery detection on CEDAR (about 65–80%), but a
+very different task than the writer-dependent numbers above.
+
+The gap between validation (99.3% on trained writers) and test (66.9%
+on held-out writers) In run C, it is itself revealing. That 32-point gap
+quantifies how much of the forgery-detection performance came from
+memorizing specific people's signatures versus actually learning what
+Forgery looks like it in general (~17 points above chance). The honest
+Takeaway: Writer-dependent forgery detection is much easier than it
+sounds, and the big numbers in that setup don't translate to
+deployment.
+
+## Why We Can't Use This Classifier to Verify Our Own Signatures
+
+A demo of the project originally envisioned was feeding our own signatures
+(and forgeries of each other's signatures) into the model to test
+whether it detects the forgery. With the classifier, that isn't
+possible — and it's the same root cause as the "why two models."
+question above.
+
+The BHSig model's 160 output neurons correspond to 160 specific
+Hindi-script writers. If we hand in someone's signature, it can only
+say "this is writer 47" or "this is writer 112" with some probability.
+It has no way to say "this is none of my known writers" or "this is a
+forgery." Classifiers are closed-set by design: they assume every
+input belongs to one of the categories they've been shown. The CEDAR
+forgery classifier has the same limitation — it was trained on CEDAR
+writers specifically and doesn't generalize to Kathan or Shuvashish.
+
+The Siamese network, by contrast, is purpose-built for this. Instead
+of outputting a class label, it outputs a distance between two
+signatures. "Are these two signatures similar?" is a question you can
+answer for any pair of images, including unseen people. That's why
+the team-signatures demo is a Siamese experiment, not a CNN experiment.
+The classifier and the verifier answer structurally different
+questions.
+
+## Comparison with the Siamese Track
+
+Shuvashish's Siamese model reports 92.95% validation accuracy on
+writer-independent BHSig verification. On paper, that's lower than the
+99.6% classification result, but the two numbers measure different
+things. Classification is writer-dependent — which of 160 known people
+wrote this signature, assuming one of them did. Verification is
+writer-independent — do these two arbitrary signatures match,
+regardless of whether the model has seen either person. The CEDAR
+forgery investigation makes the difficulty gap concrete: the same
+ResNet-18 scored 98.2% writer-dependent but 66.9% writer-independent
+on forgery detection. In realistic deployment — a bank verifying a
+new customer — the writer-independent number is what matters, and
+that is the regime the Siamese track was designed for.
+
+
+
 ### Contribution
 
 - **Shuvashish Mondal**
@@ -442,6 +682,14 @@ important as raw validation accuracy.
   - Ran experiments and analyzed results
 
 - **Kathan Desai**
+   - Reorganized BHSig260-Hindi into train/val/test splits
+   - Implemented the CNN classification pipeline
+   - Diagnosed the BatchNorm running-statistics failure behind the 0.6% baseline and implemented the GroupNorm fix
+   - Ran the full sweep on BHSig across custom CNN and ResNet-18 at 2, 10, and 160 classes
+   - Extended the pipeline to CEDAR for both writer classification and genuine-vs-forgery detection
+   - Conducted the forgery artifact investigation with binarization and writer-independent splits
+   - Wrote the single-sample inference script
+   - Authored the CNN sections of Parts 1–4
 
 - **Combined**
   - Decided on the overall project direction
