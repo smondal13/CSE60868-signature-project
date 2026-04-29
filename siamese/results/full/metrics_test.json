@@ -1,0 +1,26 @@
+{
+  "checkpoint": "siamese/runs/siamese_full_hpo_lr5e4_m125_20260408-152352/checkpoints/best.pt",
+  "device": "cpu",
+  "locked_threshold": 0.851070271398788,
+  "metrics": {
+    "accuracy_at_eer": 0.8890302015583746,
+    "accuracy_at_locked_threshold": 0.8591506214179921,
+    "auc": 0.9596388210716346,
+    "eer": 0.11110045819855463,
+    "eer_threshold": 0.7994227289497525,
+    "far_at_eer": 0.11085754961895988,
+    "far_at_locked_threshold": 0.16089523490494934,
+    "frr_at_eer": 0.11134336677814939,
+    "frr_at_locked_threshold": 0.07413600891861762,
+    "n_negative_pairs": 47764,
+    "n_pairs": 62116,
+    "n_positive_pairs": 14352
+  },
+  "pair_counts": {
+    "positive": 14352,
+    "random_impostor": 10324,
+    "skilled": 37440
+  },
+  "run_profile": "full",
+  "split": "test"
+}

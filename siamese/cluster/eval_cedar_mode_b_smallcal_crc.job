@@ -1,0 +1,33 @@
+#!/bin/bash
+#$ -M smondal@nd.edu
+#$ -m abe
+#$ -q gpu
+#$ -l gpu_card=1
+#$ -l h_rt=12:00:00
+#$ -pe smp 4
+#$ -N sig_cedar_smallcal
+#$ -o /users/smondal/signature-project/logs/sig_cedar_smallcal.$JOB_ID.out
+#$ -e /users/smondal/signature-project/logs/sig_cedar_smallcal.$JOB_ID.err
+
+source ~/.bashrc
+conda activate machine-learning
+
+cd /users/smondal/signature-project/repo
+export PYTHONPATH=/users/smondal/signature-project/repo/siamese/src
+export SIGNATURE_DATA_ROOT=/users/smondal/signature-project/data/cedar-bhsig260
+
+# CEDAR Mode-B threshold calibration with a small calibration subset.
+# This keeps the BHSig model frozen and only calibrates threshold on a small
+# number of CEDAR writers, then evaluates on disjoint held-out CEDAR writers.
+export SIGNATURE_RUN_NAME_PREFIX="${SIGNATURE_RUN_NAME_PREFIX:-siamese_full_hpo_lr5e4_m075}"
+export SIGNATURE_CHECKPOINT_PATH="${SIGNATURE_CHECKPOINT_PATH:-/users/smondal/signature-project/repo/siamese/runs/siamese_full_hpo_lr5e4_m075_20260408-152352/checkpoints/best.pt}"
+export SIGNATURE_OUTPUT_ROOT="${SIGNATURE_OUTPUT_ROOT:-/users/smondal/signature-project/repo/siamese/results/cedar_mode_b_smallcal}"
+
+# Small-data calibration controls (override as needed at qsub time).
+export SIGNATURE_CEDAR_CALIBRATION_WRITERS="${SIGNATURE_CEDAR_CALIBRATION_WRITERS:-5}"
+export SIGNATURE_MAX_SKILLED_FORGERIES_PER_WRITER="${SIGNATURE_MAX_SKILLED_FORGERIES_PER_WRITER:-60}"
+export SIGNATURE_MAX_RANDOM_IMPOSTORS_PER_WRITER="${SIGNATURE_MAX_RANDOM_IMPOSTORS_PER_WRITER:-40}"
+export SIGNATURE_NUM_WORKERS="${SIGNATURE_NUM_WORKERS:-4}"
+export SIGNATURE_SEED="${SIGNATURE_SEED:-42}"
+
+python -m signature_siamese.evaluate_cedar_mode_b
