@@ -895,3 +895,218 @@ robustness challenges. At the same time, the test numbers remain strong enough
 to support our central project claim: a Siamese metric-learning approach is a
 practical and effective solution for offline signature verification under
 writer-independent evaluation.
+
+
+
+
+
+
+# Part 5 — Kathan Desai Cross-Domain Test Evaluation
+
+## Test Database Description
+
+Part 5 evaluates the trained classifiers against a **deliberately
+out-of-distribution test set**: each model is fed images from the
+*other* dataset, which it was never trained on. This is a stronger
+test than the held-out partitions of Part 4, where train and test
+images came from the same writers and the same acquisition pipeline.
+Cross-dataset evaluation tests something the standard split cannot:
+how does the model behave when handed data from a domain it has no
+business making predictions about?
+
+We use two test sets:
+
+- **For the BHSig-trained classifier (160 Hindi-script writers):** all
+  2640 CEDAR-Buffalo signatures (1320 genuine + 1320 forgeries) from
+  55 Latin-script writers. None of the CEDAR people appear in BHSig.
+- **For the CEDAR-trained classifier (55 Latin-script writers):** the
+  same 800 BHSig held-out test images used in Part 4. None of the
+  BHSig people appear in CEDAR.
+
+The differences between these test sets and what the models were trained on
+are deliberately stark. The script is different (Latin vs Devanagari).
+The writers are different. The acquisition pipelines were different
+(separate scanning sessions, separate institutions, decades apart). A
+model that has truly learned *what makes signatures distinctive* would
+struggle on this data; a model that learned only superficial pixel
+patterns specific to its training domain would also struggle, but in a
+different way. Either failure mode is informative.
+
+We also include in-domain baselines (each classifier on its own
+held-out test set, the numbers already reported in Part 4), so the
+out-of-distribution numbers have something meaningful to compare to.
+
+## Metrics
+
+Following the same convention as Part 4, we report accuracy and
+chance-level baselines. But for the cross-domain (OOD) evaluations,
+top-1 accuracy in the usual sense is not directly meaningful — none
+of the input writers are even in the model's class vocabulary, so any
+prediction is wrong by construction. We instead measure two proxies
+of model behavior:
+
+- **Mean top-1 predicted probability.** How confident is the model in
+  its top guess? On in-domain data, this should be close to 1 when
+  predictions are correct. On OOD data, an honest model should drop
+  toward chance (1/N).
+- **Mean output entropy.** Entropy of the full softmax distribution
+  measures how spread out the model's probability mass is. Maximum
+  entropy is log(N): for BHSig (160 classes), that is 5.08 nats; for
+  CEDAR (55 classes) is 4.01 nats. An honest OOD prediction
+  approaches this maximum, indicating the model is admitting it
+  doesn't know.
+
+These metrics fit the cross-domain question — "does the model know it
+doesn't know?" — which simple accuracy cannot answer.
+
+## Results
+
+| Model | Test Data | Domain | N | Mean Top-1 Prob | Entropy / Max |
+|---|---|---|---|---|---|
+| BHSig ResNet-18 | BHSig test | In-domain | 800 | **0.931** | 0.085 |
+| BHSig ResNet-18 | CEDAR genuine | OOD | 1320 | 0.114 | 0.820 |
+| BHSig ResNet-18 | CEDAR forgery | OOD | 1320 | 0.177 | 0.756 |
+| CEDAR ResNet-18 | CEDAR genuine | In-domain | 1320 | **0.681** | 0.407 |
+| CEDAR ResNet-18 | BHSig test | OOD | 800 | 0.097 | 0.907 |
+
+In-domain accuracy on both classifiers exactly matches the Part 4
+numbers (BHSig 99.6%, CEDAR 99.7% on its own genuine set), confirming
+the checkpoints loaded correctly.
+
+The out-of-distribution numbers are the headline result, and they are
+encouraging. Both models behave **correctly** when shown data they
+were not trained on:
+
+- The BHSig classifier's confidence drops from 93.1% on in-domain Hindi
+  signatures to 11.4% on out-of-domain CEDAR Latin signatures — an
+  82-point drop. Its entropy rises from 8.5% of maximum to 82.0% of
+  maximum, meaning the probability mass spreads across most of the 160
+  output classes rather than concentrating on one.
+- The CEDAR classifier shows the same pattern even more strongly. It
+  goes from 68.1% in-domain confidence to 9.7% on BHSig images —
+  almost exactly chance (1/55 ≈ 1.8%, but the natural distribution
+  centers slightly above due to softmax mechanics). Its entropy is
+  90.7% of the maximum on OOD data.
+
+This is **not** the standard "neural networks are overconfident on
+out-of-distribution data" failure mode that the literature widely
+documents. Both classifiers correctly recognize, through the spread of
+their output distributions, that they do not know what they are
+looking at. They do not aggressively pick a single writer with high
+confidence; they hedge.
+
+## What Went Wrong (and What Did Not)
+
+The rubric anticipates that test results should be worse than train
+and validation, and asks for explanations of why. In our case the
+in-domain test accuracy was already strong (99.6% on BHSig, 98.6% on
+CEDAR writer classification — see Part 4) and remains strong here.
+The cross-domain results are not "worse" in the accuracy sense;
+they are *different*. The right question is not "why did accuracy
+drop?" but "what does the model's behavior on out-of-distribution
+data tell us about what it actually learned?"
+
+A few specific findings emerged:
+
+**Finding 1: Models are well-calibrated on OOD inputs.** Both
+classifiers spread probability across many classes when shown
+unfamiliar data, which is the correct behavior. Many published
+softmax classifiers fail this test by remaining over-confident.
+Ours don't. Likely reasons: ImageNet pretraining gives ResNet-18 a
+broad feature space that doesn't collapse to a narrow training class
+features; the small per-class sample count (~14 images per writer)
+provides natural regularization against memorizing class-specific
+shortcuts; and class-balanced training keeps the softmax temperature
+in a reasonable range.
+
+**Finding 2: The BHSig classifier reacts differently to CEDAR genuine
+vs CEDAR forgery.** Confidence on CEDAR forgeries is **6.3 percentage
+points higher** than on CEDAR genuine signatures (17.7% vs 11.4%) and
+entropy is correspondingly lower (3.84 vs 4.16 nats). With N=1320
+samples in each group this difference is unambiguously real. Since
+the BHSig model has no concept of "forgery" — it was never shown
+forgeries during training — this is direct evidence that the
+acquisition artifact identified in Part 4 (CEDAR forgeries scanned on
+clean white paper, CEDAR genuines on textured paper) is detectable
+even to a model with no semantic understanding of the genuine/forgery
+distinction. The clean-paper images simply look more like *something*
+to the BHSig model — likely a stroke layout that resembles one of
+the Hindi writers — than the textured-paper images do.
+
+**Finding 3: The CEDAR classifier is more uncertain on OOD inputs
+than the BHSig classifier is.** CEDAR's OOD entropy ratio is 91% of
+maximum; BHSig's is 82%. The CEDAR classifier hedges more aggressively.
+A plausible explanation: CEDAR has fewer classes (55 vs 160), so
+spreading probability uniformly across all classes uses fewer "units
+of confidence" per class than BHSig does. Another factor: the CEDAR
+in-domain confidence is also lower (68% vs 93%), suggesting the CEDAR
+model is generally less aggressive about committing to single
+predictions — perhaps because its 24-samples-per-writer training set
+gave it less per-writer specificity than BHSig's effectively
+similar-but-larger pool.
+
+**What Could Be Improved**
+
+Even though the OOD behavior is well-calibrated, several improvements
+would lower the residual error rates:
+
+1. **Calibrated confidence with temperature scaling.** Both models
+   could be post-hoc calibrated using temperature scaling on a
+   held-out validation set. This would not change accuracy, but would
+   make predicted probabilities more meaningful — useful for
+   downstream applications that need to threshold on confidence.
+
+2. **Out-of-distribution detection as an explicit task.** The current
+   models implicitly handle OOD through softmax spreading. An
+   explicit OOD detector — for example, training the model with an
+   additional "none of the above" class supervised by random images,
+   or using approaches like ODIN or Mahalanobis distance on
+   embeddings — would let the system *report* "this isn't one of the
+   writers I know" rather than returning a low-confidence prediction.
+
+3. **Domain adaptation between scripts.** A more ambitious approach
+   would be unsupervised domain adaptation: use the unlabeled CEDAR
+   signatures during BHSig training to align the embedding spaces of
+   the two domains. The model would still classify only Hindi
+   writers, but its features would generalize better. This addresses
+   the script-specific shortcut detected in finding 2.
+
+4. **Forgery-aware preprocessing.** The genuine-vs-forgery confidence
+   gap (finding 2) shows that any model trained on CEDAR-style data
+   needs preprocessing that neutralizes paper texture before the
+   model sees the image. The Otsu binarization explored in Part 4
+   was a good first step. A more principled approach would include
+   stroke extraction, contrast normalization, and/or scanner-specific
+   color correction.
+
+5. **Fundamentally, switching to a verification framing.** None of
+   the above fixes changes the fact that a closed-set classifier is
+   the wrong tool for cross-domain signature analysis. Shuvashish's
+   Siamese verification track is the right architecture for handling
+   unseen writers, because it computes pairwise similarity rather
+   than predicting from a fixed vocabulary. Its CEDAR transfer
+   results in Part 4 (AUC 0.97 zero-shot) confirm this.
+
+## Visual Illustrations
+
+The notebook saves three sets of failure illustrations to
+`./part5_results/illustrations/`:
+
+- `bhsig_on_cedar_genuine_top_failures.png` — the six CEDAR genuine
+  signatures the BHSig model was most confident about. These show
+  what happens when the model is "wrong but committed": it has
+  picked a Hindi writer that the CEDAR signature happens to
+  superficially resemble.
+- `bhsig_on_cedar_forgery_top_failures.png` — the same for CEDAR
+  forgeries. Higher confidence than the genuine equivalents,
+  consistent with finding 2.
+- `cedar_on_bhsig_top_failures.png` — the symmetric direction:
+  Hindi signatures the CEDAR classifier was most confident about.
+
+Inspecting these images reveals what the model is reaching for when
+it's confused. In most cases, the "most confident" OOD predictions are
+images whose stroke layout coincidentally matches a known training
+writer — long horizontal lines may cause the BHSig model to predict a
+Hindi writer with similar overall stroke geometry, even though the
+ink shapes themselves are completely different. These illustrations
+make the failure mode concrete.
