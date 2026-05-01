@@ -698,9 +698,9 @@ that is the regime the Siamese track was designed for.
 
 ---
 
-## Part 5: Held-Out Test Report
+## Part 5: Held-Out Test Report (Shuvashish Mondal)
 
-This section reports final results on the **held-out test partition** and
+This section reports final results on the held-out test partition and
 focuses on how well our final neural-network systems generalize beyond the
 data used for model fitting and threshold selection.
 
@@ -746,10 +746,7 @@ In short, this test protocol is strong enough to evaluate whether the final
 embedding model learned transferable signature structure (stroke geometry,
 relative spacing, slant tendencies) rather than memorizing specific authors.
 
-For the writer-dependent CNN track, we also report held-out test accuracy on
-its own test partitions (as defined in Part 4). Those numbers are useful for
-baseline comparison, but they answer a different question: classification among
-known identities rather than verification for unseen users.
+
 
 ### 2. Final test metrics (same metric family as Part 4)
 
@@ -787,20 +784,6 @@ These numbers show the expected pattern:
 - validation is lower but still strong,
 - held-out test is lower than validation, confirming nontrivial generalization
   gap on unseen writers.
-
-#### 2.2 Classification accuracy results (Part 4 metric continuity)
-
-To keep metric continuity with Part 4, we also report test-set classification
-accuracy for the writer-dependent CNN track:
-
-- BHSig-Hindi, ResNet-18, 160-way classification: **99.6% test accuracy**
-- CEDAR, ResNet-18, 55-way classification: **98.6% test accuracy**
-- BHSig-Hindi, custom CNN, 160-way classification: **48.8% test accuracy**
-
-These classification numbers are not directly comparable to the Siamese
-verification accuracy because the tasks differ (closed-set identification vs
-open-set-style pair verification), but they provide context on model behavior
-across architectures.
 
 ### 3. Why test performance is worse, with concrete failure illustrations
 
