@@ -696,6 +696,205 @@ that is the regime the Siamese track was designed for.
   - Selected the final dataset used in the project
   - Reviewed the final repository and report
 
+---
+
+## Part 5: Held-Out Test Report (Shuvashish Mondal)
+
+This section reports final results on the held-out test partition and
+focuses on how well our final neural-network systems generalize beyond the
+data used for model fitting and threshold selection.
+
+### 1. Test database description and why it is a valid generalization test
+
+For the final writer-independent Siamese verification track, we used the full
+**BHSig-260 Bengali + Hindi** manifest with strict writer-level split
+separation.
+
+From `siamese/manifests/bhsig260_manifest_stats.json`, the split sizes are:
+
+- Train: 8,424 samples from 156 writers (3,744 genuine, 4,680 forgeries)
+- Validation: 2,808 samples from 52 writers (1,248 genuine, 1,560 forgeries)
+- Test: 2,808 samples from 52 writers (1,248 genuine, 1,560 forgeries)
+- Total: 14,040 samples across 260 writers
+
+For Siamese evaluation, each split is converted to deterministic verification
+pairs. On the held-out test split, the pair composition is:
+
+- Positive (genuine-genuine): 14,352
+- Skilled forgeries: 37,440
+- Random impostor pairs: 10,324
+- Total test pairs: 62,116
+
+The test set differs from training in the most important way for deployment:
+**all test writers are unseen during training**. This matters because an offline
+signature system in practice must verify people who were not part of model
+optimization. If writer identities overlap across train and test, the model can
+partly memorize writer style and inflate reported performance. Our split avoids
+that leakage by design.
+
+Compared to validation, the test subset is matched in cardinality and label
+balance but differs by identity realization (different writer subset sampled
+from the same source distribution). This is a good design choice for two
+reasons:
+
+1. It keeps the train/val/test comparison fair because sample counts and
+   class balance are similar.
+2. It still tests true writer-independent generalization because no writer is
+   shared across partitions.
+
+In short, this test protocol is strong enough to evaluate whether the final
+embedding model learned transferable signature structure (stroke geometry,
+relative spacing, slant tendencies) rather than memorizing specific authors.
+
+
+
+### 2. Final test metrics (same metric family as Part 4)
+
+#### 2.1 Final Siamese test result on BHSig held-out test split
+
+Using checkpoint
+`siamese_full_hpo_lr5e4_m075_20260408-152352/checkpoints/best.pt` and the
+validation-locked threshold \(\tau = 0.5195\), the held-out BHSig test results
+from `siamese/results/full/metrics_test.json` are:
+
+- Test AUC: **0.9697**
+- Test EER: **0.0923**
+- FAR at locked threshold: **0.1046**
+- FRR at locked threshold: **0.0833**
+- Accuracy at locked threshold: **90.03%**
+- Accuracy at EER threshold: **90.78%**
+
+Direct comparison to earlier train/validation results:
+
+- Train accuracy at locked threshold: 98.52%
+- Validation accuracy at locked threshold: 92.95%
+- Test accuracy at locked threshold: 90.03%
+
+- Train AUC: 0.9990
+- Validation AUC: 0.9800
+- Test AUC: 0.9697
+
+- Train EER: 0.0085
+- Validation EER: 0.0706
+- Test EER: 0.0923
+
+These numbers show the expected pattern:
+
+- training performance is strongest,
+- validation is lower but still strong,
+- held-out test is lower than validation, confirming nontrivial generalization
+  gap on unseen writers.
+
+### 3. Why test performance is worse, with concrete failure illustrations
+
+It is expected that the Siamese test metrics are weaker than train/validation.
+In our case, the drop is meaningful but not catastrophic, and the reasons are
+technically interpretable.
+
+#### 3.1 Writer shift is the core source of degradation
+
+In train/val/test, writer identities are disjoint. Validation and test are both
+unseen-writer conditions, but they are different sets of writers. A threshold
+that is tuned on one unseen subset may not be exactly optimal for another.
+This appears in our metrics:
+
+- Validation FAR/FRR at locked threshold are balanced (~0.070/0.071),
+- Test FAR/FRR shift to ~0.105/0.083.
+
+So on test, the locked operating point becomes slightly more permissive for
+some negatives, increasing FAR.
+
+#### 3.2 Hard negatives remain the main challenge
+
+The test set includes two types of negatives: skilled forgeries and random
+impostors. The model does well overall, but false accepts are concentrated in
+the difficult edge cases where cross-writer style similarity is high. This is
+consistent with our earlier robustness and external-evaluation observations.
+
+A concrete illustration from our CEDAR small-calibration run
+(`siamese/results/cedar_mode_b_smallcal_workers10/.../metrics_mode_b.json`)
+supports this interpretation:
+
+- At the calibrated threshold, overall FRR is very low (0.0108),
+- but random-impostor FAR is high (0.7269) under that small-data calibration.
+
+Even though CEDAR is an external dataset and not the primary Part 5 test set,
+this behavior highlights the same failure mode: with limited calibration data,
+threshold choice can under-penalize look-alike impostors.
+
+#### 3.3 Image-quality and stroke-appearance shifts still matter
+
+From our robustness analysis (Part 4), we observed that performance is less
+sensitive to small rotations and more sensitive to:
+
+- resolution degradation,
+- stroke thickness perturbation (especially thinning).
+
+This explains part of the test gap: even without synthetic perturbations, real
+held-out signatures include natural variation in scan quality, pen pressure,
+and stroke continuity. If the learned embedding depends too strongly on fine
+pixel-level stroke cues, test data with subtle quality shifts will produce more
+distance overlap between positive and negative pairs.
+
+#### 3.4 Why this is not a failure of the overall approach
+
+Despite the drop, test AUC remains high (0.9697), and test EER is below 10%.
+That means ranking quality is still strong: positives are usually closer than
+negatives. The larger issue is operating-point calibration and edge-case
+separation, not total collapse of representation quality.
+
+### 4. Improvements we would make to reduce test error
+
+Based on the observed error profile, the most impactful next steps are:
+
+1. **Stronger threshold calibration protocol**
+   Use a small, disjoint calibration subset closer to deployment conditions and
+   report confidence intervals across multiple calibration writer draws. This
+   should reduce FAR/FRR drift between validation and test.
+
+2. **Hard-negative emphasis during training**
+   Increase the sampling pressure on cross-writer near-neighbor negatives.
+   The goal is to widen the margin specifically where false accepts currently
+   concentrate.
+
+3. **Robustness-targeted augmentation v2**
+   Mild augmentation already helped substantially, but we would extend it with
+   better scan and stroke perturbation realism (compression artifacts, blur,
+   thinning/thickening asymmetry controls) so that test-time nuisance variation
+   is closer to training-time variation.
+
+4. **Score calibration beyond single threshold**
+   Instead of one global threshold, evaluate script-aware or quality-aware
+   calibration (for example, separate calibration for Bengali/Hindi or for
+   low-resolution signatures). This can reduce asymmetric FAR/FRR behavior.
+
+5. **Error auditing by pair type**
+   Store and inspect the top false accepts and false rejects, then annotate
+   whether each error is driven by stroke similarity, segmentation artifacts, or
+   scan noise. This would make the next training iteration more targeted.
+
+### 5. Part 5 summary
+
+The final held-out test evaluation confirms that our writer-independent Siamese
+network generalizes well but not perfectly. On the BHSig test partition
+(62,116 verification pairs from unseen writers), we obtained:
+
+- **AUC = 0.9697**
+- **EER = 0.0923**
+- **Accuracy at locked threshold = 90.03%**
+
+compared to validation:
+
+- AUC = 0.9800
+- EER = 0.0706
+- Accuracy = 92.95%
+
+The expected test degradation is present and is mainly explained by writer
+shift, threshold-transfer mismatch, and remaining hard-negative / appearance
+robustness challenges. At the same time, the test numbers remain strong enough
+to support our central project claim: a Siamese metric-learning approach is a
+practical and effective solution for offline signature verification under
+writer-independent evaluation.
 
 
 

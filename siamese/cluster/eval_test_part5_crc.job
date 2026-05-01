@@ -1,0 +1,26 @@
+#!/bin/bash
+#$ -M smondal@nd.edu
+#$ -m abe
+#$ -q gpu
+#$ -l gpu_card=1
+#$ -l h_rt=12:00:00
+#$ -pe smp 4
+#$ -N sig_eval_test
+#$ -o /users/smondal/signature-project/logs/sig_eval_test.$JOB_ID.out
+#$ -e /users/smondal/signature-project/logs/sig_eval_test.$JOB_ID.err
+
+source ~/.bashrc
+conda activate machine-learning
+
+cd /users/smondal/signature-project/repo
+export PYTHONPATH=/users/smondal/signature-project/repo/siamese/src
+export SIGNATURE_DATA_ROOT=/users/smondal/signature-project/data/cedar-bhsig260
+
+# Part 5 report settings (full held-out BHSig test evaluation).
+export SIGNATURE_RUN_PROFILE="${SIGNATURE_RUN_PROFILE:-full}"
+export SIGNATURE_EVAL_SPLIT="${SIGNATURE_EVAL_SPLIT:-test}"
+export SIGNATURE_NUM_WORKERS="${SIGNATURE_NUM_WORKERS:-4}"
+export SIGNATURE_CHECKPOINT_PATH="${SIGNATURE_CHECKPOINT_PATH:-/users/smondal/signature-project/repo/siamese/runs/siamese_full_hpo_lr5e4_m075_20260408-152352/checkpoints/best.pt}"
+export SIGNATURE_OUTPUT_DIR="${SIGNATURE_OUTPUT_DIR:-/users/smondal/signature-project/repo/siamese/results/full}"
+
+python -m signature_siamese.evaluate
