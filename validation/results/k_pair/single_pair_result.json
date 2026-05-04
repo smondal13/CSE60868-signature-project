@@ -1,0 +1,13 @@
+{
+  "checkpoint": "/Users/smondal/Documents/Github/CSE60868-signature-project/siamese/runs/siamese_full_hpo_lr5e4_m075_20260408-152352/checkpoints/best.pt",
+  "correct": false,
+  "device": "cpu",
+  "distance": 0.22914157807826996,
+  "expected_label": 0,
+  "expected_text": "non-match",
+  "image_a": "validation/K-G.jpg",
+  "image_b": "validation/K-F.jpg",
+  "predicted_label": 1,
+  "predicted_text": "match",
+  "threshold": 0.5195213260507225
+}

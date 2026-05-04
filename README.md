@@ -1110,3 +1110,56 @@ writer — long horizontal lines may cause the BHSig model to predict a
 Hindi writer with similar overall stroke geometry, even though the
 ink shapes themselves are completely different. These illustrations
 make the failure mode concrete.
+
+---
+
+## Part 6: Team Signature Pairwise Demo (Siamese Inference)
+
+This section reports a direct pairwise verification demo using the final
+Siamese checkpoint:
+
+- checkpoint:
+  `siamese/runs/siamese_full_hpo_lr5e4_m075_20260408-152352/checkpoints/best.pt`
+- decision rule: predict `match` if \(d \le \tau\), else `non-match`
+- threshold variants used:
+  - BHSig locked threshold: \(\tau = 0.519521\)
+  - CEDAR-calibrated threshold (Mode B): \(\tau = 0.093968\)
+
+### Pairwise results table
+
+| Pair (Image A vs Image B) | Distance \(d\) | Threshold source | \(\tau\) | Predicted | Expected | Correct |
+|---|---:|---|---:|---|---|---|
+| `K-G.jpg` vs `K-F.jpg` | 0.229142 | BHSig locked | 0.519521 | match (1) | non-match (0) | No |
+| `K-G.jpg` vs `K-F.jpg` | 0.229142 | CEDAR calibrated | 0.093968 | non-match (0) | non-match (0) | Yes |
+| `S-G.jpg` vs `S-F.jpg` | 1.209397 | BHSig locked | 0.519521 | non-match (0) | non-match (0) | Yes |
+| `S-G.jpg` vs `S-F.jpg` | 1.209397 | CEDAR calibrated | 0.093968 | non-match (0) | non-match (0) | Yes |
+| `K-G.jpg` vs `S-G.jpg` | 1.249992 | BHSig locked | 0.519521 | non-match (0) | non-match (0) | Yes |
+| `K-G.jpg` vs `S-G.jpg` | 1.249992 | CEDAR calibrated | 0.093968 | non-match (0) | non-match (0) | Yes |
+
+### Interpretation
+
+The key observation is that the learned embedding distance for
+`K-G.jpg` vs `K-F.jpg` (0.229142) lies between the two thresholds:
+
+\[
+0.093968 < 0.229142 < 0.519521
+\]
+
+So:
+
+- with the more permissive BHSig threshold, the pair is accepted as `match`
+  (false acceptance),
+- with the stricter CEDAR-calibrated threshold, the same pair is correctly
+  rejected as `non-match`.
+
+This directly illustrates that for real deployment, **threshold calibration is
+as important as representation quality**.
+
+### Saved inference artifacts
+
+- `validation/results/k_pair/single_pair_result.json`
+- `validation/results/k_pair_cedar_threshold/single_pair_result.json`
+- `validation/results/s_pair/single_pair_result.json`
+- `validation/results/s_pair_cedar_threshold/single_pair_result.json`
+- `validation/results/k_vs_s_bhsig_threshold/single_pair_result.json`
+- `validation/results/k_vs_s_cedar_threshold/single_pair_result.json`
