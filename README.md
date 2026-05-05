@@ -247,6 +247,28 @@ The underlying inference entry point is:
 
 - [infer_single_pair.py](./siamese/src/signature_siamese/infer_single_pair.py)
 
+#### TA quick-run option (no conda required): venv + notebook
+
+If conda is unavailable, the same inference can be verified in a plain Python
+virtual environment:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -U pip
+pip install -r siamese/requirements-inference.txt
+pip install -e .
+python -m ipykernel install --user --name signature-venv --display-name "signature-venv"
+jupyter notebook siamese/notebooks/siamese_inference_demo.ipynb
+```
+
+The notebook reproduces single-pair inference from the final checkpoint and
+includes the team demo pairs:
+
+- `K-G.jpg` vs `K-F.jpg`
+- `S-G.jpg` vs `S-F.jpg`
+- `K-G.jpg` vs `S-G.jpg`
+
 #### Evaluation protocol
 
 The Bengali and Hindi portions of **BHSig-260** were split in a
