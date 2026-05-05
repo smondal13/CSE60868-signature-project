@@ -785,6 +785,14 @@ These numbers show the expected pattern:
 - held-out test is lower than validation, confirming nontrivial generalization
   gap on unseen writers.
 
+#### 2.1.1 FAR/FRR operating-curve plot
+
+The figure below shows FAR and FRR as a function of threshold for both
+validation and held-out test splits (generated from `roc_val.csv` and
+`roc_test.csv`).
+
+![FAR FRR Validation and Test](presentation_plots/far_frr_val_test.png)
+
 ### 3. Why test performance is worse, with concrete failure illustrations
 
 It is expected that the Siamese test metrics are weaker than train/validation.
